@@ -1,0 +1,31 @@
+TODO - Small tasks
+Finish ability weight per position csv
+Calculate overall ability per position
+Handle unknown ability data
+Hanble abilities that are important but never colored (marcação de penalties)
+Reselect relevant columns exported on FM (remove, empty, add other (reputation))
+Rename and organize views on FM
+Improve column names and order when exporting results
+Create some way of listing players to be removed from database (deprecate old data)
+Make paths relative to current script directory when possible
+
+
+_____________________________
+TODO - Big tasks
+Report the best 11 (actually 22, 2 per position) for current squad
+Report the best 22 for under 18 years players
+Automatically categorize players into Main squad, under 23 and under 18
+Automatically categorize team players into things like Best player per position, high salary for ability, young with potential growth, good cheap replacement player, etc
+Reports for coaches (similar of what to do with players)
+Reports for market (hire players/managers)
+Analysis based on multiple factors (on market and club players): age, ability, cost
+Nice plots
+Report in an good way (pdf/html + csv/xlsx)
+Support player statistics (moneyball analysis)
+
+
+_____________________________
+Done
+Read df with NA in all empty fields
+Support coaches
+Handle outdated data, removing players/coaches from df
