@@ -1,0 +1,104 @@
+fullName,shortName,positions
+Guarda-Redes Líbero Defender,GRL-De,GR
+Guarda-Redes Líbero Apoiar,GRL-Ap,GR
+Guarda-Redes Líbero Atacar,GRL-At,GR
+Guarda-Redes Defender,GR-De,GR
+Ala Defender,Al-De,"D(E),D(D),DA(E),DA(D)"
+Ala Apoiar,Al-Ap,"D(E),D(D),DA(E),DA(D)"
+Ala Atacar,Al-At,"D(E),D(D),DA(E),DA(D)"
+Ala Completo Apoiar,AlC-Ap,"D(E),D(D),DA(E),DA(D)"
+Ala Completo Atacar,AlC-At,"D(E),D(D),DA(E),DA(D)"
+Defesa Ala Invertido Defender,DAI-De,"D(E),D(D),DA(E),DA(D)"
+Defesa Ala Invertido Apoiar,DAI-Ap,"D(E),D(D),DA(E),DA(D)"
+Defesa Ala Invertido Atacar,DAI-At,"D(E),D(D),DA(E),DA(D)"
+Defesa Central Defender,DC-De,D(C)
+Defesa Central Bloqueador,DC-Bl,D(C)
+Defesa Central Cobrir,DC-Co,D(C)
+Defesa Central Eficiente Defender,DCE-De,D(C)
+Defesa Central Eficiente Bloqueador,DCE-Bl,D(C)
+Defesa Central Eficiente Cobrir,DCE-Co,D(C)
+Defesa Com Bola Defender,DBl-De,D(C)
+Defesa Com Bola Bloqueador,DBl-Bl,D(C)
+Defesa Com Bola Cobrir,DBl-Co,D(C)
+Defesa Lateral Defender,DL-De,"D(E),D(D)"
+Defesa Lateral Apoiar,DL-Ap,"D(E),D(D)"
+Defesa Lateral Atacar,DL-At,"D(E),D(D)"
+Lateral Descomplicado Defender,DLE-De,"D(E),D(D)"
+Líbero Avançado Apoiar,LOf-Ap,D(C)
+Líbero Avançado Atacar,LOf-At,D(C)
+Avançado de Referência Apoiar,ARA-Ap,"MO(D),MO(E)"
+Avançado de Referência Atacar,ARA-At,"MO(D),MO(E)"
+Avançado Interior Apoiar,AI-Ap,"MO(D),MO(E)"
+Avançado Interior Atacar,AI-At,"MO(D),MO(E)"
+Avançado Sombra Atacar,AS-At,MO(C)
+Carrilero Apoiar,CAR-Ap,M(C)
+Construtor de Jogo Avançado Apoiar,CJA-Ap,"M(C),MO(C),MO(D),MO(E)"
+Construtor de Jogo Avançado Atacar,CJA-At,"M(C),MO(C),MO(D),MO(E)"
+Construtor de Jogo Recuado Defender,CJ-De,"MD,M(C)"
+Construtor de Jogo Recuado Apoiar,CJ-Ap,"MD,M(C)"
+Extremo Apoiar,Ex-Ap,"M(D),M(E),MO(D),MO(E)"
+Extremo Atacar,Ex-At,"M(D),M(E),MO(D),MO(E)"
+Extremo Defensivo Defender,ExD-De,"M(D),M(E)"
+Extremo Defensivo Apoiar,ExD-Ap,"M(D),M(E)"
+Extremo Invertido Apoiar,EI-Ap,"M(D),M(E),MO(D),MO(E)"
+Extremo Invertido Atacar,EI-At,"M(D),M(E),MO(D),MO(E)"
+Médio Ala Defender,MAl-De,"M(D),M(E)"
+Médio Ala Apoiar,MAl-Ap,"M(D),M(E)"
+Médio Ala Atacar,MAl-At,"M(D),M(E)"
+Médio Área-a-Área Apoiar,MAA-Ap,M(C)
+Médio Centro Defender,MC-De,M(C)
+Médio Centro Apoiar,MC-Ap,M(C)
+Médio Centro Atacar,MC-At,M(C)
+Médio Criativo Apoiar,RGA-Ap,MD
+Médio Defensivo Defender,MD-De,MD
+Médio Defensivo Apoiar,MD-Ap,MD
+Médio Ofensivo Apoiar,MO-Ap,MO(C)
+Médio Ofensivo Atacar,MO-At,MO(C)
+Médio Recuperador de Bolas Defender,MRB-De,"MD,M(C)"
+Médio Recuperador de Bolas Apoiar,MRB-Ap,"MD,M(C)"
+Mezzala Apoiar,MEZ-Ap,M(C)
+Mezzala Atacar,MEZ-At,M(C)
+Organizador Aberto Apoiar,OA-Ap,"M(D),M(E)"
+Organizador Aberto Atacar,OA-At,"M(D),M(E)"
+Organizador Móvel Apoiar,OV-Ap,"MD,M(C)"
+Pivô Defensivo Defender,PD-De,MD
+Pivô Ofensivo Apoiar,PO-Ap,MO(C)
+Ponta de Lança Aberto Atacar,PLA-At,"MO(D),MO(E)"
+Segundo Volante Apoiar,VOL-Ap,MD
+Segundo Volante Atacar,VOL-At,MD
+Trinco Defender,Tri,MD
+Avançado Completo Apoiar,AC-Ap,PL(C)
+Avançado Completo Atacar,AC-At,PL(C)
+Avançado Recuado Apoiar,AvR-Ap,PL(C)
+Avançado Recuado Atacar,AvR-At,PL(C)
+Avançado Trabalhador Defender,AT-De,PL(C)
+Avançado Trabalhador Apoiar,AT-Ap,PL(C)
+Avançado Trabalhador Atacar,AT-At,PL(C)
+Falso Nove Apoiar,F9-Ap,PL(C)
+Jogador Alvo Apoiar,Alv-Ap,PL(C)
+Jogador Alvo Atacar,Alv-At,PL(C)
+Número 10 Atacar,N10-At,"MO(C),MO(D),MO(E),PL(C)"
+Ponta-De-Lança Atacar,PL-At,PL(C)
+Ponta-De-Lança-Fixo Atacar,PFL-At,PL(C)
+Treinador Adjunto,,
+Treinador,,
+Preparador,,
+Diretor Desportivo,,
+Cientista Desportivo,,
+Analista Dados,,
+Preparador Físico,,
+Treinador de Guarda-redes,,
+Olheiro,,
+Fisioterapeuta,,
+Director do Futebol Jovem,,
+Gestor de Jogadores Emprestados,,
+Director Técnico,,
+Guarda-Redes Defesa de remates,,
+Guarda-Redes Jogo de mãos,,
+Defesa Táticas,,
+Defesa Técnicos,,
+Atacante Tácticas,,
+Atacante Técnicos,,
+Posse Tácticas,,
+Posse Técnicos,,
+Físico Ambos,,

@@ -6,6 +6,9 @@ import sys
 # Inputs
 dataDir = "C:\\fmAnalyzer\\data"
 clubName = "Blyth"
+greenWeight = 5
+blueWeight = 3
+normalWeight = 1
 
 
 # Methods
@@ -49,6 +52,51 @@ def getPersonClubStatus(row, clubName):
         else:
             return "hasClub"
 
+def parsePosition(origPosition):
+    origPosition = origPosition.split(",")
+    ret = []
+    for o in origPosition:
+        side = None
+        if "(" in o:
+            side = o.split("(")[1].split(")")[0]
+        positions = o.split("/")
+        for p in positions:
+            currPosition = p.replace(" ", "").split("(")[0]
+            if side == None:
+                ret.append(currPosition)
+            else:
+                for s in side:
+                    ret.append(currPosition + "(" + s + ")")
+    return ",".join(ret)
+
+def getRelevantAttributes(editedPositions, attributes):
+    if "GR" in editedPositions:
+        return attributes[(attributes["gkAttribute"] == "both") | (attributes["gkAttribute"] == "gk")]["shortName"]
+    else:
+        return attributes[(attributes["gkAttribute"] == "both") | (attributes["gkAttribute"] == "nonGk")]["shortName"]
+
+def checkDataCompletion(row, attributes):
+    editedPositions = row["editedPositions"]
+    relevantAttributes = getRelevantAttributes (editedPositions, attributes)
+    filteredDf = row[relevantAttributes]
+    if all(pd.isna(filteredDf.values)):
+        return "allIncomplete"
+    elif any(pd.isna(filteredDf.values)):
+        return "incomplete"
+    elif any(filteredDf.astype(str).str.contains("-")):
+        return "completeButRange"
+    else:
+        return "complete"
+
+def convertDfColumnsToNumeric(df, columns):
+    for col in columns:
+        df[col] = pd.to_numeric(df[col], errors = 'coerce')
+    return df
+
+
+
+# Current dir
+currDir = os.path.dirname(os.path.abspath(__file__))
 
 # Read data dir, get all files and order from old to new
 allFiles = []
@@ -89,13 +137,48 @@ coaches = coaches.sort_values("timestamp").drop_duplicates(["IDU"], keep = "last
 players["clubStatus"] = players.apply(lambda x: getPersonClubStatus(x, clubName), 1)
 coaches["clubStatus"] = coaches.apply(lambda x: getPersonClubStatus(x, clubName), 1)
 
-# TODO: Calculate overall for all positions
-read attributes tables
-handle missing data - create a status for each row - complete, complete but range, incomplete, all incomplete
-calculate when possible 
+# Parse players positions - Go from "MD, M/MO (DC), PL (C)" to MD,M(D),M(C),MO(D),MO(C),PL(C)
+players["editedPositions"] = players["Posição"].apply(parsePosition, 1)
+
+# Read attribute weights information
+attributes = pd.read_csv(currDir + "\\relevantAttributes\\attributes.csv")
+positions = pd.read_csv(currDir + "\\relevantAttributes\\positions.csv")
+weights = pd.read_csv(currDir + "\\relevantAttributes\\weights.csv")
+
+# Classify player/coach on attribute availability - complete, complete but range, incomplete, all incomplete
+players["dataCompletion"] = players.apply(lambda x: checkDataCompletion(x, attributes), 1)
+
+# Get average attribute value per position
+allPositions = [p.split(",") for p in players["editedPositions"].unique()]
+allPositions = np.unique(np.concatenate(allPositions))
+averageAttributesPos = pd.DataFrame()
+completePlayers = players[players["dataCompletion"] == "complete"]
+for pos in allPositions:
+    relevantAttributes = getRelevantAttributes(pos, attributes)
+    filteredDf = completePlayers[completePlayers["editedPositions"].str.contains(pos, regex = False)]
+    filteredDf = filteredDf[relevantAttributes]
+    filteredDf = convertDfColumnsToNumeric(filteredDf, relevantAttributes)
+    averageAttributesPos = pd.concat([averageAttributesPos, filteredDf.mean().to_frame().T], ignore_index = True)
+averageAttributesPos["positions"] = allPositions
+
+# Handle missing data for all playes that are complete but range or incomplete
+# calculate when possible 
 
 
 
+
+
+for key in players.keys():
+    print(key)
+    print(len(players[key].unique()))
+    print(players[key].unique())
+    print("\n\n\n\n\n\n\n______________________________________")
+
+for key in coaches.keys():
+    print(key)
+    print(len(coaches[key].unique()))
+    print(coaches[key].unique())
+    print("\n\n\n\n\n\n\n______________________________________")
 
 
 print("bla")

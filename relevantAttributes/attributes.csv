@@ -1,0 +1,73 @@
+index,fullName,shortName,playerCoach,type,gkAttribute
+1,Cabeceamento,Cab,player,Técnicos,nonGk
+2,Cantos,Cnt,player,Técnicos,nonGk
+3,Cruzamentos,Cruz,player,Técnicos,nonGk
+4,Desarme,Des,player,Técnicos,nonGk
+5,Finalização,Fnl,player,Técnicos,nonGk
+6,Finta,Fnt,player,Técnicos,nonGk
+7,Lançamentos Longos,LnçL,player,Técnicos,nonGk
+8,Livres,Liv,player,Técnicos,both
+9,Marcação,Mar,player,Técnicos,nonGk
+10,Marcação de Penáltis,Pen,player,Técnicos,both
+11,Passe,Pas,player,Técnicos,both
+12,Primeiro Toque,Pri,player,Técnicos,both
+13,Remates de Longe,Rem Lo,player,Técnicos,nonGk
+14,Técnica,Téc,player,Técnicos,both
+15,Agressividade,Agr,player,Mentais,both
+16,Antecipação,Ant,player,Mentais,both
+17,Bravura,Bra,player,Mentais,both
+18,Compostura,Cmp,player,Mentais,both
+19,Concentração,Cnc,player,Mentais,both
+20,Decisões,Decis,player,Mentais,both
+21,Determinação,Det,player,Mentais,both
+22,Imprevisibilidade,Imp.1,player,Mentais,both
+23,Índice de Trabalho,In Tr,player,Mentais,both
+24,Liderança,Lid,player,Mentais,both
+25,Posicionamento,Pos,player,Mentais,both
+26,Sem Bola,SB,player,Mentais,both
+27,Trabalho de Equipa,Tr Eq,player,Mentais,both
+28,Visão de Jogo,Vis,player,Mentais,both
+29,Aceleração,Acl,player,Físicos,both
+30,Agilidade,Agi,player,Físicos,both
+31,Equilíbrio,Eql,player,Físicos,both
+32,Força,For,player,Físicos,both
+33,Impulsão,Imp,player,Físicos,both
+34,Predisposição Física,CFN,player,Físicos,both
+35,Resistência,Res,player,Físicos,both
+36,Velocidade,Vel,player,Físicos,both
+101,(Tendência) para Saídas da Baliza,TSB,player,Guarda-Redes,gk
+102,(Tendência) para Socar,Soc,player,Guarda-Redes,gk
+103,Alcance Aéreo,Aer,player,Guarda-Redes,gk
+104,Comando de Área,Cmd,player,Guarda-Redes,gk
+105,Comunicação,Com,player,Guarda-Redes,gk
+106,Excentricidade,Exc,player,Guarda-Redes,gk
+107,Jogo de Mãos,Jg Mãos,player,Guarda-Redes,gk
+108,Lançamentos,Lan,player,Guarda-Redes,gk
+109,Pontapé,Pont,player,Guarda-Redes,gk
+110,Reflexos,Ref,player,Guarda-Redes,gk
+111,Um Para Um,1v1,player,Guarda-Redes,gk
+1001,Defensivo,Def,coach,Treino,
+1002,Físico,Fís,coach,Treino,
+1003,Mental,Men,coach,Treino,
+1004,Ofensivo,Ofe,coach,Treino,
+1006,Táctica,TTác,coach,Treino,
+1007,Técnica,Téc,coach,Treino,
+1008,Trabalho Com Jovens,Jovens,coach,Treino,
+1009,Defesa de Remates do GR,DRG,coach,Treino de GR,
+1011,Distribuição do GR,DGR,coach,Treino de GR,
+1012,Jogo de mãos do GR,JMG,coach,Treino de GR,
+1013,Adaptabilidade,Ada,coach,Mentais,
+1014,Determinação,Det,coach,Mentais,
+1015,Gestão de Recursos Humanos,GRH,coach,Mentais,
+1016,Motivação,Mot,coach,Mentais,
+1017,Nível de Disciplina,Dis,coach,Mentais,
+1018,Avaliação da Habilidade da Equipa Técnica,Ava HET,coach,Cobertura,
+1019,Avaliação da Habilidade do Jogador,Aval C,coach,Cobertura,
+1020,Avaliação do Potencial do Jogador,Aval P,coach,Cobertura,
+1021,Conhecimento Táctico,Con Tac,coach,Cobertura,
+1022,Negocial,Negocial,coach,Cobertura,
+1053,Ciência do Desporto ,CiD,coach,Médico,
+1054,Fisioterapia,Fisio,coach,Médico,
+1055,Apresentação de Relatórios ,Aná D,coach,Análise de Dados,
+1056,Avaliação de Dados de Equipa ,Jul DE,coach,Análise de Dados,
+1057,Avaliação de Dados de Jogador ,Jul DJ,coach,Análise de Dados,
