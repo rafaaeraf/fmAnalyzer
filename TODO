@@ -1,13 +1,10 @@
 TODO - Small tasks
-Finish ability weight per position csv
-Calculate overall ability per position
-Handle unknown ability data
-Hanble abilities that are important but never colored (Cantos, Lançamento longo, livres, penalti, determinação, liderança, predisposição física, (Tendência) para Socar)
+Calculate overall attribute per position
+Hanble attributes that are important but never colored (Cantos, Lançamento longo, livres, penalti, determinação, liderança, predisposição física, (Tendência) para Socar)
 Reselect relevant columns exported on FM (remove, empty, add other (reputation)) - Remove: Capacidade, Potencial, Duração, Capacidade, Potencial, capacidade para o papel. Remove coach: reputação mundial
 Rename and organize views on FM
 Improve column names and order when exporting results
 Create some way of listing players to be removed from database (deprecate old data)
-Make paths relative to current script directory when possible
 Handle imp and imp.1 problem better
 
 
@@ -16,10 +13,10 @@ TODO - Big tasks
 Report the best 11 (actually 22, 2 per position) for current squad
 Report the best 22 for under 18 years players
 Automatically categorize players into Main squad, under 23 and under 18
-Automatically categorize team players into things like Best player per position, high salary for ability, young with potential growth, good cheap replacement player, etc
+Automatically categorize team players into things like Best player per position, high salary for overall attribute, young with potential growth, good cheap replacement player, etc
 Reports for coaches (similar of what to do with players)
 Reports for market (hire players/managers)
-Analysis based on multiple factors (on market and club players): age, ability, cost
+Analysis based on multiple factors (on market and club players): age, attribute, cost
 Nice plots
 Report in an good way (pdf/html + csv/xlsx)
 Support player statistics (moneyball analysis)
@@ -30,3 +27,6 @@ Done
 Read df with NA in all empty fields
 Support coaches
 Handle outdated data, removing players/coaches from df
+Finish attribute weight per position csv
+Handle unknown attribute data
+Make paths relative to current script directory when possible
