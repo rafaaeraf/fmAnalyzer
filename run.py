@@ -7,9 +7,7 @@ import sys
 ################## Inputs ##################
 dataDir = "C:\\fmAnalyzer\\data"
 clubName = "Blyth"
-greenWeight = 5
-blueWeight = 3
-normalWeight = 1
+weightsDict = {"green": 5, "blue": 3, "normal": 1}
 
 
 ################## Methods ##################
@@ -42,9 +40,9 @@ def readData(dataDir):
     allFiles = pd.DataFrame(allFiles)
     allFiles = allFiles.sort_values("timestamp")
 
-    # Create result dataframes
-    players = pd.DataFrame()
-    coaches = pd.DataFrame()
+    # Create list of dataframes
+    playersList = []
+    coachesList = []
 
     for file in allFiles["file"]:
         # Read html
@@ -59,13 +57,17 @@ def readData(dataDir):
         dfType = getDfType(tmpDf)
         tmpDf["dfType"] = dfType
         tmpDf["dfTypeDetailed"] = getDfTypeDetailed(tmpDf, clubName)
-        # Append to the dataframe
-        if (dfType == "players"):
-            players = pd.concat([players, tmpDf], axis=0, ignore_index=True)
+        # Append to the list
+        if dfType == "players":
+            playersList.append(tmpDf)
         else:
-            coaches = pd.concat([coaches, tmpDf], axis=0, ignore_index=True)
+            coachesList.append(tmpDf)
+
+    # Concatenate DataFrames outside the loop
+    players = pd.concat(playersList, axis=0, ignore_index=True)
+    coaches = pd.concat(coachesList, axis=0, ignore_index=True)
     
-    return [players, coaches]
+    return players, coaches
 
 def getPersonClubStatus(row, clubName):
     if (row["dfTypeDetailed"] == "myClubPlayers"):
@@ -184,10 +186,18 @@ players["dataCompletion"] = players.apply(lambda x: checkDataCompletion(x, attri
 # Get average attribute value per position
 averageAttributesPos = getAverageAttributePerPosition(players, attributes)
 
-# Handle missing data for all playes that are complete but range or incomplete
+# Handle missing data for all playes that are "complete but range" or "incomplete"
 players = players.apply(lambda x: handleMissingAttributes(x, attributes, averageAttributesPos), 1)
 
+# Replace the attribute colors with weight values
+weights.replace(weightsDict, inplace=True)
+
+# Add all possible roles to players dataframe
+relevantRoles = positions.loc[positions["positions"].notna(), "shortName"].unique()
+players = pd.concat([players, pd.DataFrame(index = players.index, columns = relevantRoles)], axis = 1)
+
 # Calculate overall when possible 
+
 
     
 
