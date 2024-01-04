@@ -1,7 +1,5 @@
 TODO - Small tasks
 Handle coach "positions"
-Handle coach data completion
-Calculate overall attribute per position
 Hanble attributes that are important but never colored (Cantos, Lançamento longo, livres, penalti, determinação, liderança, predisposição física, (Tendência) para Socar)
 Reselect relevant columns exported on FM (remove, empty, add other (reputation)) - Remove: Capacidade, Potencial, Duração, Capacidade, Potencial, capacidade para o papel. Remove coach: reputação mundial
 Rename and organize views on FM
@@ -32,3 +30,5 @@ Handle outdated data, removing players/coaches from df
 Finish attribute weight per position csv
 Handle unknown attribute data
 Make paths relative to current script directory when possible
+Handle coach data completion
+Calculate overall attribute per position
