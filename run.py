@@ -6,6 +6,7 @@ import sys
 
 ################## Inputs ##################
 dataDir = "C:\\fmAnalyzer\\data"
+outputDir = "C:\\fmAnalyzer\\output"
 clubName = "Blyth"
 weightsDict = {"green": 5, "blue": 3, "normal": 1}
 
@@ -125,9 +126,10 @@ def checkDataCompletion(row, attributes):
         return "complete"
 
 def convertDfColumnsToNumeric(df, columns):
+    dfCopy = df.copy()
     for col in columns:
-        df[col] = pd.to_numeric(df[col], errors = 'coerce')
-    return df
+        dfCopy[col] = pd.to_numeric(dfCopy[col], errors = "coerce")
+    return dfCopy
 
 def getAverageAttributePerPosition(players, attributes):
     allPositions = [p.split(",") for p in players["editedPositions"].unique()]
@@ -151,12 +153,46 @@ def handleMissingAttributes(row, attributes, averageAttributesPos):
     playerPosition = random.choice(row["editedPositions"].split(","))
     for attributeName in relevantAttributes:
         if pd.isna(row[attributeName]):
-            row.at[attributeName] = averageAttributesPos.loc[averageAttributesPos["positions"] == playerPosition, attributeName]
+            selectedAttribute = averageAttributesPos.loc[averageAttributesPos["positions"] == playerPosition, attributeName]
+            if len(selectedAttribute) != 1:
+                sys.exit("ERROR: Unexpected length for the selectedAttribute")
+            row.at[attributeName] = float(selectedAttribute.iloc[0])
         elif "-" in row[attributeName]:
             rangeAttribute = row[attributeName].split("-")
             row.at[attributeName] = (float(rangeAttribute[0]) + float(rangeAttribute[1])) / 2
     return row
 
+# For each player role, gets the weights for that role, multiply by each player attributes
+# and divide by sum of the weigths, so we get a result between 0 and 20
+def calculateOverall(positions, weights, players, playerRoles):
+    ret = pd.DataFrame()
+    for role in playerRoles:
+        roleFullName = positions.loc[positions["shortName"] == role, "fullName"].iloc[0]
+        filteredWeights = weights.loc[~pd.isna(weights[roleFullName]), roleFullName]
+        total = players[filteredWeights.keys()].multiply(filteredWeights, axis = "columns")
+        total = total.apply(sum, axis = "columns") / filteredWeights.sum()
+        ret[role] = total
+    return ret
+
+# Function to get the top three best overalls and their respective role names
+# TODO: Improve this method by implementing it as a loop
+def getTopOveralls(row):
+    sortedRow = row.sort_values(ascending = False)
+    firstOverallCol = sortedRow.index[0]
+    secondOverallCol = sortedRow.index[1]
+    thirdOverallCol = sortedRow.index[2]
+    firstOverall = row[firstOverallCol]
+    secondOverall = row[secondOverallCol]
+    thirdOverall = row[thirdOverallCol]
+    if firstOverallCol.startswith("norm - "):
+        columnNames = ['firstNormOverall', 'firstNormOverallRole', 'secondNormOverall', 'secondNormOverallRole', 'thirdNormOverall', 'thirdNormOverallRole']
+        firstOverallCol = firstOverallCol.replace("norm - ", "")
+        secondOverallCol = secondOverallCol.replace("norm - ", "")
+        thirdOverallCol = thirdOverallCol.replace("norm - ", "")
+    else:
+        columnNames = ['firstOverall', 'firstOverallAttribute', 'secondOverall', 'secondOverallAttribute', 'thirdOverall', 'thirdOverallAttribute']
+    return pd.Series([firstOverall, firstOverallCol, secondOverall, secondOverallCol, thirdOverall, thirdOverallCol], 
+                     index = columnNames)
 
 ################## Main ##################
 
@@ -164,7 +200,7 @@ def handleMissingAttributes(row, attributes, averageAttributesPos):
 currDir = os.path.dirname(os.path.abspath(__file__))
 attributes = pd.read_csv(currDir + "\\relevantAttributes\\attributes.csv")
 positions = pd.read_csv(currDir + "\\relevantAttributes\\positions.csv")
-weights = pd.read_csv(currDir + "\\relevantAttributes\\weights.csv")
+weights = pd.read_csv(currDir + "\\relevantAttributes\\weights.csv", index_col = "shortName")
 
 # Read data dir, get all files and order from old to new
 [players, coaches] = readData(dataDir)
@@ -189,19 +225,44 @@ averageAttributesPos = getAverageAttributePerPosition(players, attributes)
 # Handle missing data for all playes that are "complete but range" or "incomplete"
 players = players.apply(lambda x: handleMissingAttributes(x, attributes, averageAttributesPos), 1)
 
+# Convert attributes to numeric
+players = convertDfColumnsToNumeric(players, attributes.loc[attributes["playerCoach"] == "player", "shortName"])
+
 # Replace the attribute colors with weight values
 weights.replace(weightsDict, inplace=True)
 
-# Add all possible roles to players dataframe
-relevantRoles = positions.loc[positions["positions"].notna(), "shortName"].unique()
-players = pd.concat([players, pd.DataFrame(index = players.index, columns = relevantRoles)], axis = 1)
+# Calculate overall per role
+playerRoles = positions.loc[positions["positions"].notna(), "shortName"].unique()
+players = pd.concat([players, calculateOverall(positions, weights, players, playerRoles)], axis = "columns")
 
-# Calculate overall when possible 
+# Get the top three overalls
+result = players[playerRoles].apply(getTopOveralls, axis = "columns")
+players = pd.concat([players, result], axis = "columns")
+
+# Calculate normalized overalls
+# TODO: Extract a method
+maxOveralls = players[playerRoles].apply(max, axis = "rows")
+minOveralls = players[playerRoles].apply(min, axis = "rows")
+ret = 100 * (players[playerRoles] - minOveralls) / (maxOveralls - minOveralls)
+playerRolesNorm = "norm - " + playerRoles # Names of player roles normalized overall columns
+ret.columns = playerRolesNorm
+players = pd.concat([players, ret], axis = "columns")
+
+# Get the top three normalized overalls
+result = players[playerRolesNorm].apply(getTopOveralls, axis = "columns")
+players = pd.concat([players, result], axis = "columns")
 
 
-    
 
 
+
+#weigths = convertDfColumnsToNumeric(weights, [c for c in weights.columns if c != "shortName"])
+
+#i = 0
+#for a in players['Pas']:
+#    if type(a) is np.ndarray:
+#        print(i)
+#    i = i + 1
 
 # check unique content per column
 #for key in players.keys():
@@ -216,4 +277,6 @@ players = pd.concat([players, pd.DataFrame(index = players.index, columns = rele
 #    print("\n\n\n\n\n\n\n______________________________________")
 
 
+players.to_csv(outputDir + "\\players.csv")
+players.to_excel(outputDir + "\\players.xlsx")
 print("end")
