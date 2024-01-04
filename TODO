@@ -14,7 +14,9 @@ Report the best 11 (actually 22, 2 per position) for current squad
 Report the best 22 for under 18 years players
 Automatically categorize players into Main squad, under 23 and under 18
 Automatically categorize team players into things like Best player per position, high salary for overall attribute, young with potential growth, good cheap replacement player, etc
+Identify team players that should train in other positions
 Reports for coaches (similar of what to do with players)
+Coaches training suggestions
 Reports for market (hire players/managers)
 Analysis based on multiple factors (on market and club players): age, attribute, cost
 Nice plots

@@ -9,6 +9,7 @@ dataDir = "C:\\fmAnalyzer\\data"
 outputDir = "C:\\fmAnalyzer\\output"
 clubName = "Blyth"
 weightsDict = {"green": 5, "blue": 3, "normal": 1}
+teamFormation = ["GR", "D(E)", "D(C)", "D(C)", "D(D)", "MD", "M(C)", "M(C)", "MO(C)", "PL(C)", "PL(C)"]
 
 
 ################## Methods ##################
@@ -72,7 +73,7 @@ def readData(dataDir):
 
 def getPersonClubStatus(row, clubName):
     if (row["dfTypeDetailed"] == "myClubPlayers"):
-        if (row["Clube"] != clubName):
+        if (row["Clube"] == clubName):
             return "myClub"
         else:
             return "myClubLent"
@@ -176,6 +177,7 @@ def calculateOverall(positions, weights, players, playerRoles):
 
 # Function to get the top three best overalls and their respective role names
 # TODO: Improve this method by implementing it as a loop
+# TODO: Return full name of role instead of short name
 def getTopOveralls(row):
     sortedRow = row.sort_values(ascending = False)
     firstOverallCol = sortedRow.index[0]
@@ -194,6 +196,30 @@ def getTopOveralls(row):
     return pd.Series([firstOverall, firstOverallCol, secondOverall, secondOverallCol, thirdOverall, thirdOverallCol], 
                      index = columnNames)
 
+# Remove positions that a player does not play on from a dataframe
+def removeUnplayedPositions(row, positions):
+    # Get all positions the player does not play on
+    notPlayedPositions = positions[positions["positions"].apply(
+        lambda x: all(item not in str(x) for item in row["editedPositions"].split(",")) if not pd.isna(x) else False)]
+    # Transform all of those positions to NA
+    row[notPlayedPositions["shortName"]] = pd.NA
+
+    return row
+
+# Returns the best player, the role and overall value of a dataframe containing only overalls
+def findMaxValueLocation(df):
+    # Replace NaN values with a very low number
+    dfFilled = df.fillna(-float('inf'))
+
+    # Find the location of the maximum value
+    maxLocation = dfFilled.stack().idxmax()
+
+    # Extract idu, role, and maximum value
+    idu, role = maxLocation
+    maxValue = df.at[idu, role]
+
+    return idu, role, maxValue
+
 ################## Main ##################
 
 # Get current dir and read attributes weights csvs
@@ -208,6 +234,8 @@ weights = pd.read_csv(currDir + "\\relevantAttributes\\weights.csv", index_col =
 # Drop duplicates considering unique ID and keeping most recent date
 players = players.sort_values("timestamp").drop_duplicates(["IDU"], keep = "last")
 coaches = coaches.sort_values("timestamp").drop_duplicates(["IDU"], keep = "last")
+players = players.set_index("IDU")
+coaches = coaches.set_index("IDU")
 
 # Get person club status
 players["clubStatus"] = players.apply(lambda x: getPersonClubStatus(x, clubName), 1)
@@ -252,7 +280,44 @@ players = pd.concat([players, ret], axis = "columns")
 result = players[playerRolesNorm].apply(getTopOveralls, axis = "columns")
 players = pd.concat([players, result], axis = "columns")
 
+# Get best 11
+# TODO: Extract a method
+# Get only players currently on my club
+filteredPlayers = players[players["clubStatus"] == "myClub"]
+# Remove all overalls from positions the each player do not play on
+filteredPlayers = filteredPlayers.apply(removeUnplayedPositions, axis = 1, positions = positions)
+# Positions to be filled
+missingPositions = teamFormation.copy()
+bestEleven = []
+# Loop
+while len(missingPositions) > 0:
+    # Get the roles relevant for team formation missing positions
+    filteredPositions = positions[positions["positions"].apply(lambda x: any(item in str(x) for item in missingPositions) if not pd.isna(x) else False)]
+    # Only roles relevant for current missing positions
+    filteredPlayers = filteredPlayers[filteredPositions["shortName"]]
+    # Get best player for all of missing positions
+    idu, role, maxValue = findMaxValueLocation(filteredPlayers)
+    # Get a position that the team still needs, that is compatible with the role and the player plays
+    rolePositions = positions.loc[positions["shortName"] == role, "positions"].item().split(",")
+    playerPositions = players.loc[idu, "editedPositions"].split(",")
+    selectedPosition = random.choice(list(set(rolePositions) & set(playerPositions) & set(missingPositions)))
+    # Add player to bestEleven dataframe and remove the player from possible players to be used and position from missing positions
+    bestEleven.append([idu, selectedPosition, role, maxValue])
+    missingPositions.remove(selectedPosition)
+    filteredPlayers = filteredPlayers.drop(idu)
+bestEleven = pd.DataFrame(bestEleven, columns = ["IDU", "position", "role", "overall"])
+bestEleven = bestEleven.set_index("IDU")
 
+
+filteredPlayers[filteredPositions["shortName"]]
+filteredPlayers[filteredPositions["shortName"]]
+# pega todos os roles que o cara não joga e transforma em nan
+
+# Get best second squad
+
+# Get best under 19
+
+# Get best 11 lent
 
 
 
