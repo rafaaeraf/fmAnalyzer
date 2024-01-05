@@ -10,8 +10,6 @@ Handle imp and imp.1 problem better
 
 _____________________________
 TODO - Big tasks
-Report the best 11 (actually 22, 2 per position) for current squad
-Report the best 22 for under 18 years players
 Automatically categorize players into Main squad, under 23 and under 18
 Automatically categorize team players into things like Best player per position, high salary for overall attribute, young with potential growth, good cheap replacement player, etc
 Identify team players that should train in other positions
