@@ -132,9 +132,13 @@ def convertDfColumnsToNumeric(df, columns):
         dfCopy[col] = pd.to_numeric(dfCopy[col], errors = "coerce")
     return dfCopy
 
-def getAverageAttributePerPosition(players, attributes):
+def getAllPossiblePositions(players):
     allPositions = [p.split(",") for p in players["editedPositions"].unique()]
     allPositions = np.unique(np.concatenate(allPositions))
+    return allPositions
+
+def getAverageAttributePerPosition(players, attributes):
+    allPositions = getAllPossiblePositions(players)
     averageAttributesPos = pd.DataFrame()
     completePlayers = players[players["dataCompletion"] == "complete"]
     for pos in allPositions:
@@ -226,49 +230,103 @@ def excludePlayers(players, playersToExclude):
     # If players to exclude is provided, remove these players
     if playersToExclude != None: 
         for df in playersToExclude:
-            filteredPlayers = filteredPlayers.drop(df.index)
+            playersToDrop = [index for index in df.index if index in filteredPlayers.index]
+            filteredPlayers = filteredPlayers.drop(playersToDrop)
     return filteredPlayers
 
 # Given a players dataframe returns the best players
 # If team formation is provided, 11 players for these positions are returned
-def getTopPlayers(players, positions, playerRoles, playersToExclude = None, teamFormation = None, age = None, numPlayers = 5):
+def getTopPlayers(players, positions, playerRoles, playersToExclude = None, teamFormation = None, age = None, numPlayers = 5, referenceTeam = None, knowledge = None):
     filteredPlayers = excludePlayers(players, playersToExclude)
     # Filter by age
     if age != None:
         filteredPlayers = filteredPlayers[filteredPlayers["Idade"] <= age]
-    # If team formation was provided, this is focused on positions
-    if teamFormation != None:
+    # Filter by knowledge
+    if knowledge != None:
+        filteredPlayers = filteredPlayers[filteredPlayers["Nív. Conh."] <= knowledge]
+    if isinstance(referenceTeam , pd.DataFrame):
+        # If comparing to a team, list all positions we need to find players better than the list
+        missingPositions = list(set(referenceTeam["position"]))
+    elif teamFormation != None:
+        # If mounting a team, get all positions we need to fill
         missingPositions = teamFormation.copy()
-        numPlayers = len(missingPositions)
-        # Remove all overalls from positions the each player do not play on
+    # If position based, remove all overalls from positions the each player do not play on
+    if isinstance(referenceTeam , pd.DataFrame) or teamFormation != None:
         filteredPlayers = filteredPlayers.apply(removeUnplayedPositions, axis = 1, positions = positions)
     # Get overalls
     filteredPlayers = filteredPlayers[playerRoles]
     ret = []
-    for i in range(numPlayers):
-        if teamFormation != None:
+    addPlayerToRet = True
+    while(True):
+        if teamFormation != None or isinstance(referenceTeam , pd.DataFrame):
             # Get the roles relevant for team formation missing positions
             filteredPositions = positions[positions["positions"].apply(lambda x: any(item in str(x) for item in missingPositions) if not pd.isna(x) else False)]
             # Only roles relevant for current missing positions
             filteredPlayers = filteredPlayers[filteredPositions["shortName"]]
+            if filteredPlayers.shape[0] == 0:
+                break
         # Get best player for all of missing positions
         idu, role, maxValue = findMaxValueLocation(filteredPlayers)
+
         # If position based, check in which position player will play
-        if teamFormation != None:
+        if teamFormation != None or isinstance(referenceTeam , pd.DataFrame):
             # Get a position that the team still needs, that is compatible with the role and the player plays
             rolePositions = positions.loc[positions["shortName"] == role, "positions"].item().split(",")
             playerPositions = players.loc[idu, "editedPositions"].split(",")
-            selectedPosition = random.choice(list(set(rolePositions) & set(playerPositions) & set(missingPositions)))
+            acceptablePositions = list(set(rolePositions) & set(playerPositions) & set(missingPositions))
+            # In some cases, player can play in one role that fills a position he plays, but do not play for a position we need
+            if len(acceptablePositions) > 0:
+                selectedPosition = random.choice(acceptablePositions)
+            else:
+                # Give up on this player
+                filteredPlayers = filteredPlayers.drop(idu)
+                continue
         else:
             selectedPosition = players.loc[idu, "editedPositions"]
-        # Add player to ret dataframe and remove the player from possible players to be used and position from missing positions
-        ret.append([idu, selectedPosition, role, maxValue])
-        filteredPlayers = filteredPlayers.drop(idu)
+
+        # If we are comparing to a team, now it is time to decide if we should add this best player to the list or not
+        if isinstance(referenceTeam , pd.DataFrame):
+            # If player is better than the reference team, add to ret
+            if maxValue > min(referenceTeam.loc[referenceTeam["position"] == selectedPosition, "overall"]):
+                addPlayerToRet = True
+            else:
+                # Case our best player is not good enough for that position, remove the position from the list as we are giving up on it
+                addPlayerToRet = False
+                missingPositions.remove(selectedPosition)
+
+        if addPlayerToRet:
+            # Add player to ret dataframe and remove the player from possible players to be used
+            ret.append([idu, selectedPosition, role, maxValue])
+            filteredPlayers = filteredPlayers.drop(idu)
         if teamFormation != None:
+            # If mounting a team, remove position from from missing positions
             missingPositions.remove(selectedPosition)
+        
+        # Should we leave?
+        if teamFormation != None or isinstance(referenceTeam , pd.DataFrame):
+            if len(missingPositions) == 0:
+                break
+        else:
+            numPlayers = numPlayers - 1
+            if numPlayers == 0:
+                break
+
     ret = pd.DataFrame(ret, columns = ["IDU", "position", "role", "overall"])
     ret = ret.set_index("IDU")
     return ret
+
+# Given a set of filtered dataframes and tags pairs, returns a column of the original original dataframe
+# containing these tags for the relevant row contained in the filtered dataframes
+def getAnalysisStatus(players, dfAndTag):
+    playersCopy = pd.DataFrame(index = players.index, columns = ["analysisStatus"])
+    for df, tag in dfAndTag:
+        playersCopy.loc[playersCopy.index.isin(df.index), "analysisStatus"] = tag
+    return playersCopy["analysisStatus"]
+
+# Function to convert percentage strings to float
+def handlePercentageValues(percentageStr):
+    # Remove the percentage sign and convert to float
+    return float(percentageStr.strip("%"))/100
 
 
 ################## Main ##################
@@ -287,6 +345,9 @@ players = players.sort_values("timestamp").drop_duplicates(["IDU"], keep = "last
 coaches = coaches.sort_values("timestamp").drop_duplicates(["IDU"], keep = "last")
 players = players.set_index("IDU")
 coaches = coaches.set_index("IDU")
+
+# Handle percentage values
+players["Nív. Conh."] = players["Nív. Conh."].apply(handlePercentageValues)
 
 # Get person club status
 players["clubStatus"] = players.apply(lambda x: getPersonClubStatus(x, clubName), 1)
@@ -331,17 +392,46 @@ players = pd.concat([players, ret], axis = "columns")
 result = players[playerRolesNorm].apply(getTopOveralls, axis = "columns")
 players = pd.concat([players, result], axis = "columns")
 
-# Get best 11, best second team and best young players
+# Get best 11 and best second team
 bestEleven = getTopPlayers(players[players["clubStatus"] == "myClub"], positions, playerRoles, teamFormation = teamFormation)
 bestSecondTeam = getTopPlayers(players[players["clubStatus"] == "myClub"], positions, playerRoles, [bestEleven], teamFormation)
-bestUnder19 = getTopPlayers(players[players["clubStatus"] == "myClub"], positions, playerRoles, [bestEleven, bestSecondTeam], age = 19)
-bestUnder17 = getTopPlayers(players[players["clubStatus"] == "myClub"], positions, playerRoles, [bestEleven, bestSecondTeam, bestUnder19], age = 17)
-badPlayers = excludePlayers(players[players["clubStatus"] == "myClub"], [bestEleven, bestSecondTeam, bestUnder19, bestUnder17])
+# Get lent players good enough for best eleven and best second team
+lentBestEleven = getTopPlayers(players[players["clubStatus"] == "myClubLent"], positions, playerRoles, referenceTeam = bestEleven)
+lentBestSecondTeam = getTopPlayers(players[players["clubStatus"] == "myClubLent"], positions, playerRoles, [lentBestEleven], referenceTeam = bestSecondTeam)
+# Get best 11 under 19 and 17
+under19BestEleven = getTopPlayers(players[players["clubStatus"].isin(["myClubLent", "myClub"])], positions, playerRoles, [bestEleven, bestSecondTeam, lentBestEleven, lentBestSecondTeam], teamFormation = teamFormation, age = 19)
+under17BestEleven = getTopPlayers(players[players["clubStatus"].isin(["myClubLent", "myClub"])], positions, playerRoles, [bestEleven, bestSecondTeam, lentBestEleven, lentBestSecondTeam, under19BestEleven], teamFormation = teamFormation, age = 17)
+# Get the bad players
+badPlayers = excludePlayers(players[players["clubStatus"] == "myClub"], [bestEleven, bestSecondTeam, under19BestEleven, under17BestEleven])
 # Get best lent players
-bestLent = getTopPlayers(players[players["clubStatus"] == "myClubLent"], positions, playerRoles, numPlayers = 10)
-bestUnder19Lent = getTopPlayers(players[players["clubStatus"] == "myClubLent"], positions, playerRoles, [bestLent], age = 19, numPlayers = 10)
-badLent = excludePlayers(players[players["clubStatus"] == "myClubLent"], [bestLent, bestUnder19Lent])
+badLent = excludePlayers(players[players["clubStatus"] == "myClubLent"], [lentBestEleven, lentBestSecondTeam, under19BestEleven, under17BestEleven])
 
+# Handle players with low knowledge
+noKnowledge = players[players["dataCompletion"] == "allIncomplete"]
+lowKnowledgeBestSecondTeam = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge], referenceTeam = bestSecondTeam, knowledge = 0.3)
+lowKnowledgeBestSecondTeamUnder19 = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBestSecondTeam], referenceTeam = under19BestEleven, age = 19, knowledge = 0.3)
+lowKnowledgeBestTop5 = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBestSecondTeam, lowKnowledgeBestSecondTeamUnder19], knowledge = 0.3)
+lowKnowledgeBestTop5Under19 = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBestSecondTeam, lowKnowledgeBestSecondTeamUnder19, lowKnowledgeBestTop5], age = 19, knowledge = 0.3)
+lowKnowledgeBadPlayers = excludePlayers(players[(players["dfTypeDetailed"] == "searchPlayers") & (players["Nív. Conh."] <= 0.3)], [noKnowledge, lowKnowledgeBestSecondTeam, lowKnowledgeBestSecondTeamUnder19, lowKnowledgeBestTop5, lowKnowledgeBestTop5Under19])
+lowKnowlegeSuggestScout = excludePlayers(players[(players["dfTypeDetailed"] == "searchPlayers") & (players["Nív. Conh."] <= 0.3)], [lowKnowledgeBadPlayers])
+# Players with knowledge
+hireBestEleven = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBadPlayers, lowKnowlegeSuggestScout], referenceTeam = bestEleven)
+hireBestSecondTeam = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBadPlayers, lowKnowlegeSuggestScout, hireBestEleven], referenceTeam = bestSecondTeam)
+hireBestUnder19 = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBadPlayers, lowKnowlegeSuggestScout, hireBestEleven, hireBestSecondTeam], referenceTeam = under19BestEleven, age = 19)
+nonTeamFormationPositions = list(set(getAllPossiblePositions(players)) - set(teamFormation))
+bestOtherPositions = getTopPlayers(players[players["dfTypeDetailed"] == "searchPlayers"], positions, playerRoles, [noKnowledge, lowKnowledgeBadPlayers, lowKnowlegeSuggestScout, hireBestEleven, hireBestSecondTeam, hireBestUnder19], teamFormation = nonTeamFormationPositions)
+badHirePlayers = excludePlayers(players[players["dfTypeDetailed"] == "searchPlayers"], [noKnowledge, lowKnowledgeBadPlayers, lowKnowlegeSuggestScout, hireBestEleven, hireBestSecondTeam, hireBestUnder19, bestOtherPositions])
+
+# Add a tags column to the players dataframe
+players["analysisStatus"] = getAnalysisStatus(players, [(bestEleven, "bestEleven"), (bestSecondTeam, "bestSecondTeam"),
+                                                        (lentBestEleven, "lentBestEleven"), (lentBestSecondTeam, "lentBestSecondTeam"),
+                                                        (under19BestEleven, "under19BestEleven"), (under17BestEleven, "under17BestEleven"),
+                                                        (badPlayers, "badPlayers"), (badLent, "badLent"),
+                                                        (noKnowledge, "noKnowledge"), (lowKnowledgeBadPlayers, "lowKnowledgeBadPlayers"),
+                                                        (lowKnowlegeSuggestScout, "lowKnowlegeSuggestScout"),
+                                                        (hireBestEleven, "hireBestEleven"), (hireBestSecondTeam, "hireBestSecondTeam"),
+                                                        (hireBestUnder19, "hireBestUnder19"), (bestOtherPositions, "bestOtherPositions"),
+                                                        (badHirePlayers, "badHirePlayers")])
 
 
 #weigths = convertDfColumnsToNumeric(weights, [c for c in weights.columns if c != "shortName"])

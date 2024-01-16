@@ -1,4 +1,7 @@
 TODO - Small tasks
+Update getTopPlayers for using averall and compare differences
+Look at the data and define a small knowledge threshold
+Handle players in experience in the club
 Handle coach "positions"
 Hanble attributes that are important but never colored (Cantos, Lançamento longo, livres, penalti, determinação, liderança, predisposição física, (Tendência) para Socar)
 Reselect relevant columns exported on FM (remove, empty, add other (reputation)) - Remove: Capacidade, Potencial, Duração, Capacidade, Potencial, capacidade para o papel. Remove coach: reputação mundial
@@ -10,6 +13,7 @@ Handle imp and imp.1 problem better
 
 _____________________________
 TODO - Big tasks
+Report team overalls (team average score so we can check evolution) - maybe receive in game date so we can have a history?
 Automatically categorize players into Main squad, under 23 and under 18
 Automatically categorize team players into things like Best player per position, high salary for overall attribute, young with potential growth, good cheap replacement player, etc
 Identify team players that should train in other positions
@@ -24,6 +28,8 @@ Support player statistics (moneyball analysis)
 
 _____________________________
 Done
+Report the best 11 (actually 22, 2 per position) for current squad
+Report the best 22 for under 18 years players
 Read df with NA in all empty fields
 Support coaches
 Handle outdated data, removing players/coaches from df
