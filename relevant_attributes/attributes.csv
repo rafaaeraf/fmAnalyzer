@@ -1,17 +1,17 @@
-index,fullName,shortName,playerCoach,type,gkAttribute
-1,Cabeceamento,Cab,player,Técnicos,nonGk
-2,Cantos,Cnt,player,Técnicos,nonGk
-3,Cruzamentos,Cruz,player,Técnicos,nonGk
-4,Desarme,Des,player,Técnicos,nonGk
-5,Finalização,Fnl,player,Técnicos,nonGk
-6,Finta,Fnt,player,Técnicos,nonGk
-7,Lançamentos Longos,LnçL,player,Técnicos,nonGk
+index,full_name,short_name,player_coach,type,gk_attribute
+1,Cabeceamento,Cab,player,Técnicos,non_gk
+2,Cantos,Cnt,player,Técnicos,non_gk
+3,Cruzamentos,Cruz,player,Técnicos,non_gk
+4,Desarme,Des,player,Técnicos,non_gk
+5,Finalização,Fnl,player,Técnicos,non_gk
+6,Finta,Fnt,player,Técnicos,non_gk
+7,Lançamentos Longos,LnçL,player,Técnicos,non_gk
 8,Livres,Liv,player,Técnicos,both
-9,Marcação,Mar,player,Técnicos,nonGk
+9,Marcação,Mar,player,Técnicos,non_gk
 10,Marcação de Penáltis,Pen,player,Técnicos,both
 11,Passe,Pas,player,Técnicos,both
 12,Primeiro Toque,Pri,player,Técnicos,both
-13,Remates de Longe,Rem Lo,player,Técnicos,nonGk
+13,Remates de Longe,Rem Lo,player,Técnicos,non_gk
 14,Técnica,Téc,player,Técnicos,both
 15,Agressividade,Agr,player,Mentais,both
 16,Antecipação,Ant,player,Mentais,both
