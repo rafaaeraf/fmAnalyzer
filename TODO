@@ -1,4 +1,7 @@
 TODO - Small tasks
+bug on gk with medium knowledge overall is empty
+Results - smaller column names, team summary, dump raw data, column width, role as full name
+Run profiler
 Html results
 Have a simple note system (a column to add on raw data xlsx that is persisted if available)
 Can we identify positions that player really plays vs can barely play?
@@ -12,7 +15,6 @@ Rename and organize views on FM
 Improve column names and order when exporting results
 Create some way of listing players to be removed from database (deprecate old data)
 Handle imp and imp.1 problem better
-
 
 _____________________________
 TODO - Big tasks

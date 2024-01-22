@@ -17,25 +17,25 @@ TEAM_FORMATION = ["GR", "D(E)", "D(C)", "D(C)", "D(D)", "MD", "M(C)", "M(C)", "M
 ################## Methods ##################
 def get_df_type(df):
     if "Posição" in df.keys():
-        return "players_internal"
+        return "players"
     elif "Função" in df.keys():
         return "coaches"
 
 def get_df_type_detailed(df):
-    if get_df_type(df) == "players_internal":
-        # If all players_internal are from the club or lent by the club, then this file is a
+    if get_df_type(df) == "players":
+        # If all players are from the club or lent by the club, then this file is a
         # club export file
-        if all((df['Clube'] == CLUB_NAME) | (df['Emprestado Por'] == CLUB_NAME)):
+        if all((df["Clube"] == CLUB_NAME) | (df["Emprestado Por"] == CLUB_NAME)):
             return "my_club_players"
         else:
             return "search_players"
     elif get_df_type(df) == "coaches":
-        if all(df['Clube'] == CLUB_NAME):
+        if all(df["Clube"] == CLUB_NAME):
             return "my_club_coaches"
         else:
             return "search_coaches"
     else:
-        sys.exit("ERROR: Data is not for coaches neither players_internal")
+        sys.exit("ERROR: Data is not for coaches neither players")
 
 def read_data():
     all_files = []
@@ -63,7 +63,7 @@ def read_data():
         tmp_df["df_type"] = df_type
         tmp_df["df_type_detailed"] = get_df_type_detailed(tmp_df)
         # Append to the list
-        if df_type == "players_internal":
+        if df_type == "players":
             players_list.append(tmp_df)
         else:
             coaches_list.append(tmp_df)
@@ -201,14 +201,14 @@ def get_top_overalls(row):
     second_overall = row[second_overall_col]
     third_overall = row[third_overall_col]
     if first_overall_col.startswith("norm - "):
-        column_names = ['first_norm_overall', 'first_norm_ovverall_role', 'second_norm_overall',
-                        'second_norm_overall_role', 'third_norm_overall', 'third_norm_overall_role']
+        column_names = ["1st_norm_over", "1st_norm_over_role", "2nd_norm_over",
+                        "2nd_norm_over_role", "3rd_norm_over", "3rd_norm_over_role"]
         first_overall_col = first_overall_col.replace("norm - ", "")
         second_overall_col = second_overall_col.replace("norm - ", "")
         third_overall_col = third_overall_col.replace("norm - ", "")
     else:
-        column_names = ['first_overall', 'first_overall_attribute', 'second_overall',
-                        'second_overall_attribute', 'third_overall', 'third_overall_attribute']
+        column_names = ["1st_over", "1st_over_role", "2nd_over",
+                        "2nd_over_role", "3rd_over", "3rd_over_role"]
     return pd.Series([first_overall, first_overall_col, second_overall, second_overall_col,
                       third_overall, third_overall_col], index=column_names)
 
@@ -236,7 +236,7 @@ def remove_unplayed_positions(row, positions_internal):
 # Returns the best player, the role and overall value of a dataframe containing only overalls
 def find_max_value_location(df):
     # Replace NaN values with a very low number
-    df_filled = df.fillna(-float('inf'))
+    df_filled = df.fillna(-float("inf"))
 
     # Find the location of the maximum value
     max_location = df_filled.stack().idxmax()
@@ -271,7 +271,7 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
     if isinstance(reference_team, pd.DataFrame):
         # If comparing to a team, list all positions_internal we need to find
         # players_internal better than the list
-        missing_positions = list(set(reference_team["position"]))
+        missing_positions = list(set(reference_team["s_position"]))
     elif team_formation_internal is not None:
         # If mounting a team, get all positions_internal we need to fill
         missing_positions = team_formation_internal.copy()
@@ -323,8 +323,8 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
             # If we are comparing to a team, now it is time to decide if we should add this best
             # player to the list or not
             # If player is better than the reference team, add to ret
-            if max_value > min(reference_team.loc[reference_team["position"] == selected_position,
-                                                  "overall"]):
+            if max_value > min(reference_team.loc[
+                reference_team["s_position"] == selected_position, "s_over"]):
                 add_player_to_ret = True
             else:
                 # Case our best player is not good enough for that position, remove the position
@@ -351,7 +351,8 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
             if num_players == 0:
                 break
 
-    ret = pd.DataFrame(ret, columns=["IDU", "position", "role", "overall"])
+    ret = pd.DataFrame(ret, columns=["IDU", "s_position", "s_role",
+                                     "s_over"])
     ret = ret.set_index("IDU")
     return ret
 
@@ -370,6 +371,47 @@ def handle_percentage_values(percentage_str):
     # Remove the percentage sign and convert to float
     return float(percentage_str.strip("%")) / 100
 
+# Organize dataframe so it has a nice format for output
+def make_df_printable(df, players_internal):
+    # Relevant columns for all
+    col_all = ["s_position", "s_role", "s_over",
+                "Nome", "Posição", "Idade", "Clube", "Nac",
+                "Valor", "Preço Exigido", "Salário", "Expira", "Pé Preferido", "Altura", "Peso",
+                "Personalidade", "Nív. Conh.", "Situação de Transferência", "Empréstimo",
+                "analysis_status", "1st_over", "1st_over_role", "2nd_over", "2nd_over_role",
+                "3rd_over", "3rd_over_role", "1st_norm_over", "1st_norm_over_role",
+                "2nd_norm_over", "2nd_norm_over_role", "3rd_norm_over", "3rd_norm_over_role"]
+    # If top_players dataframe, get info from full players dataframe
+    if "s_position" in df.columns:
+        ret = pd.merge(df, players_internal, how="inner", left_index=True, right_index=True)
+        # Order by team formation
+        ret = sort_dataframe_by_custom_order(ret, "s_position", TEAM_FORMATION)
+    else:
+        ret = df
+    # Get columns available on df
+    return ret[[c for c in col_all if c in ret.columns]]
+
+# Used to sort players dataframe on team formation order
+def sort_dataframe_by_custom_order(df, column_name, custom_order):
+    # Append items from df that are not on custom_order to the end of custom_order
+    extra_items = list(df[column_name].unique())
+    extra_items.sort()
+    custom_order.extend(extra_items)
+    # Remove duplicates of custom_order
+    custom_order = list(dict.fromkeys(custom_order))
+    # Create a categorical data type with the custom order
+    custom_order_cat = pd.Categorical(df[column_name], categories=custom_order, ordered=True)
+    # Sort the dataframe based on the custom order
+    sorted_df = df.assign(**{column_name: custom_order_cat}).sort_values(column_name)
+    return sorted_df
+
+# Save xlsx results
+def save_results(outputs, players_internal):
+    with pd.ExcelWriter(os.path.join(OUTPUT_DIR, "results.xlsx")) as writer: # pylint: disable=abstract-class-instantiated
+        for out in outputs:
+            print(out[1])
+            make_df_printable(out[0], players_internal).to_excel(writer, sheet_name=out[1],
+                                                                 index=True, float_format="%.2f")
 
 ################## Main ##################
 def main():
@@ -391,6 +433,16 @@ def main():
 
     # Handle percentage values
     players["Nív. Conh."] = players["Nív. Conh."].apply(handle_percentage_values)
+
+    # Handle value column
+    players["Valor"] = players["Valor"].fillna(players["Valor.1"])
+    players.drop(columns=["Valor.1"], inplace=True)
+
+    # Handle loan and transfer status text
+    players["Situação de Transferência"] = players["Situação de Transferência"].replace(
+        {"Colocado na lista de transferências": "Listado"})
+    players["Empréstimo"] = players["Empréstimo"].replace(
+        {"Colocado na lista de transferências": "Listado"})
 
     # Get person club status
     players["club_status"] = players.apply(get_person_club_status, axis=1)
@@ -532,9 +584,24 @@ def main():
                   (best_other_positions, "best_other_positions"),
                   (bad_hire_players, "bad_hire_players")])
 
-    # Save to CSV and Excel
-    players.to_csv(os.path.join(OUTPUT_DIR, "players.csv"))
-    players.to_excel(os.path.join(OUTPUT_DIR, "players.xlsx"))
+    save_results([(best_eleven, "best_eleven"), (best_2nd_team, "best_2nd_team"),
+                  (under_19_best_eleven, "under_19_best_eleven"),
+                  (under_17_best_eleven, "under_17_best_eleven"),
+                  (lent_best_eleven, "lent_best_eleven"),
+                  (lent_best_2nd_team, "lent_best_2nd_team"),
+                  (bad_players, "bad_players"), (bad_lent, "bad_lent"),
+                  (hire_best_eleven, "hire_best_eleven"),
+                  (hire_best_2nd_team, "hire_best_2nd_team"),
+                  (hire_best_under_19, "hire_best_under_19"),
+                  (best_other_positions, "best_other_positions"),
+                  (low_knowledge_suggest_scout, "low_knowledge_suggest_scout"),
+                  (low_knowledge_best_2nd_team, "low_knowledge_best_2nd_team"),
+                  (low_knowledge_best_2nd_team_under_19, "low_knowledge_best_2nd_team_under_19"),
+                  (low_knowledge_best_top_5, "low_knowledge_best_top_5"),
+                  (low_knowledge_best_top_5_under_19, "low_knowledge_best_top_5_under_19"),
+                  (bad_hire_players, "bad_hire_players"),
+                  (low_knowledge_bad_players, "low_knowledge_bad_players"),
+                  (no_knowledge, "no_knowledge")], players)
 
     print("end")
 
@@ -544,7 +611,7 @@ if __name__ == "__main__":
 #weigths = convertDfColumnsToNumeric(weights, [c for c in weights.columns if c != "short_name"])
 
 #i = 0
-#for a in players['Pas']:
+#for a in players["Pas"]:
 #    if type(a) is np.ndarray:
 #        print(i)
 #    i = i + 1
