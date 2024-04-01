@@ -160,7 +160,7 @@ def handle_missing_attributes(row, attributes_internal, average_attributes_pos_i
     if row["data_completion"] in ["all_incomplete", "complete"]:
         return row
     row = row.copy()
-    relevant_attributes = get_relevant_attributes(row, attributes_internal)
+    relevant_attributes = get_relevant_attributes(row['edited_positions'], attributes_internal)
     player_position = random.choice(row["edited_positions"].split(","))
     for attribute_name in relevant_attributes:
         if pd.isna(row[attribute_name]):
@@ -191,7 +191,6 @@ def calculate_overall(positions_internal, weights_internal, players_internal,
 
 # Function to get the top three best overalls and their respective role names
 # TODO: Improve this method by implementing it as a loop
-# TODO: Return full name of role instead of short name
 def get_top_overalls(row):
     sorted_row = row.sort_values(ascending=False)
     first_overall_col = sorted_row.index[0]
@@ -405,13 +404,14 @@ def sort_dataframe_by_custom_order(df, column_name, custom_order):
     sorted_df = df.assign(**{column_name: custom_order_cat}).sort_values(column_name)
     return sorted_df
 
-# Save xlsx results
+# Save xlsx results for processed data and a csv for raw data
 def save_results(outputs, players_internal):
     with pd.ExcelWriter(os.path.join(OUTPUT_DIR, "results.xlsx")) as writer: # pylint: disable=abstract-class-instantiated
         for out in outputs:
             print(out[1])
             make_df_printable(out[0], players_internal).to_excel(writer, sheet_name=out[1],
                                                                  index=True, float_format="%.2f")
+    players_internal.to_csv(os.path.join(OUTPUT_DIR, "raw_results.csv"), index=True)
 
 ################## Main ##################
 def main():

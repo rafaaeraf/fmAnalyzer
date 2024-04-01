@@ -1,6 +1,5 @@
 TODO - Small tasks
-bug on gk with medium knowledge overall is empty
-Results - smaller column names, team summary, dump raw data, column width, role as full name
+Results - smaller column names, team summary, column width, role as full name
 Run profiler
 Html results
 Have a simple note system (a column to add on raw data xlsx that is persisted if available)
