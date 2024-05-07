@@ -5,8 +5,11 @@ import sys
 import numpy as np
 import pandas as pd
 
+from datetime import datetime
+
 
 ################## Inputs ##################
+IN_GAME_DATE = "2030-10-05" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
@@ -388,7 +391,10 @@ def make_df_printable(df, players_internal):
     else:
         ret = df
     # Get columns available on df
-    return ret[[c for c in col_all if c in ret.columns]]
+    ret = ret[[c for c in col_all if c in ret.columns]]
+    # Add notes column
+    #ret = add_notes_column()
+    return ret
 
 # Used to sort players dataframe on team formation order
 def sort_dataframe_by_custom_order(df, column_name, custom_order):
@@ -406,12 +412,52 @@ def sort_dataframe_by_custom_order(df, column_name, custom_order):
 
 # Save xlsx results for processed data and a csv for raw data
 def save_results(outputs, players_internal):
-    with pd.ExcelWriter(os.path.join(OUTPUT_DIR, "results.xlsx")) as writer: # pylint: disable=abstract-class-instantiated
+    # Before writting, try to read the last results file and get previous team summary and all player notes
+    all_files = os.listdir(OUTPUT_DIR)
+    results_files = [file for file in all_files if (file.endswith('.xlsx') and file.startswith('results'))]
+    most_recent_file = max(results_files, key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)))
+
+    # Read each tab as a separate dataframe
+    all_tabs = pd.read_excel(os.path.join(OUTPUT_DIR, most_recent_file), sheet_name=None)
+    player_tabs = []
+    for sheet_name, df in all_tabs.items():
+        if sheet_name == "team_summary":
+            team_summary = df
+        else:
+            player_tabs.append(df)
+
+    all_notes = pd.concat(all_tabs).groupby('IDU')['note'].apply(lambda x: ''.join(set(filter(None, x)))).reset_index()
+
+
+
+    # Create team summary
+    for out in outputs:
+        if out[1] in ['under_17_best_11', 'under_19_best_11', 'best_11', 'best_2nd_team']:
+            average_overal = outputs[0][0]['s_over'].mean()
+
+
+
+    # Define file names
+    all_files = os.listdir(OUTPUT_DIR)
+    i = 1
+    while True:
+        results_name = "results_" + str(i) + ".xlsx"
+        if results_name not in all_files:
+            break
+        i = i +1
+    i = 1
+    while True:
+        raw_name = "raw_data_" + str(i) + ".csv"
+        if raw_name not in all_files:
+            break
+        i = i +1
+
+    # Save results xlsx
+    with pd.ExcelWriter(os.path.join(OUTPUT_DIR, results_name)) as writer: # pylint: disable=abstract-class-instantiated
         for out in outputs:
-            print(out[1])
             make_df_printable(out[0], players_internal).to_excel(writer, sheet_name=out[1],
                                                                  index=True, float_format="%.2f")
-    players_internal.to_csv(os.path.join(OUTPUT_DIR, "raw_results.csv"), index=True)
+    players_internal.to_csv(os.path.join(OUTPUT_DIR, raw_name), index=True)
 
 ################## Main ##################
 def main():
