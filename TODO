@@ -2,7 +2,6 @@ TODO - Small tasks
 Results - smaller column names, team summary, column width, role as full name
 Run profiler
 Html results
-Have a simple note system (a column to add on raw data xlsx that is persisted if available)
 Can we identify positions that player really plays vs can barely play?
 Look at players age average evolution to decide when we should make the cuts considering evolution (current 19 and 17)
 Update getTopPlayers for using averall and compare differences
@@ -17,7 +16,6 @@ Handle imp and imp.1 problem better
 
 _____________________________
 TODO - Big tasks
-Report team overalls (team average score so we can check evolution) - maybe receive in game date so we can have a history?
 Automatically categorize team players into things like Best player per position, high salary for overall attribute, young with potential growth, good cheap replacement player, etc
 Identify team players that should train in other positions
 Reports for coaches (similar of what to do with players)
@@ -27,6 +25,7 @@ Analysis based on multiple factors (on market and club players): age, attribute,
 Nice plots
 Report in an good way (pdf/html + csv/xlsx)
 Support player statistics (moneyball analysis)
+Print per role results (best team players and best hiring possibilities)
 
 
 _____________________________
@@ -43,3 +42,5 @@ Handle coach data completion
 Calculate overall attribute per position
 Look at the data and define a small knowledge threshold
 Automatically categorize players into Main squad, under 23 and under 18
+Report team overalls (team average score so we can check evolution) - maybe receive in game date so we can have a history?
+Have a simple note system (a column to add on raw data xlsx that is persisted if available)

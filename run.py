@@ -5,8 +5,6 @@ import sys
 import numpy as np
 import pandas as pd
 
-from datetime import datetime
-
 
 ################## Inputs ##################
 IN_GAME_DATE = "2030-10-05" # YYYY-MM-DD
@@ -374,7 +372,7 @@ def handle_percentage_values(percentage_str):
     return float(percentage_str.strip("%")) / 100
 
 # Organize dataframe so it has a nice format for output
-def make_df_printable(df, players_internal):
+def make_df_printable(df, players_internal, all_notes):
     # Relevant columns for all
     col_all = ["s_position", "s_role", "s_over",
                 "Nome", "Posição", "Idade", "Clube", "Nac",
@@ -393,7 +391,8 @@ def make_df_printable(df, players_internal):
     # Get columns available on df
     ret = ret[[c for c in col_all if c in ret.columns]]
     # Add notes column
-    #ret = add_notes_column()
+    notes_column = all_notes.loc[ret.index]
+    ret = notes_column.join(ret)
     return ret
 
 # Used to sort players dataframe on team formation order
@@ -410,12 +409,47 @@ def sort_dataframe_by_custom_order(df, column_name, custom_order):
     sorted_df = df.assign(**{column_name: custom_order_cat}).sort_values(column_name)
     return sorted_df
 
+def team_summary_helper(names, results, base_name, values):
+    names.append(base_name + "_mean")
+    results.append(values.mean())
+    names.append(base_name + "_max")
+    results.append(values.max())
+    names.append(base_name + "_min")
+    results.append(values.min())
+    return names, results
+
+def create_team_summary(outputs, players_internal):
+    row_names = []
+    row_values = []
+    for out in outputs:
+        if out[1] in ['under_17_best_eleven', 'under_19_best_eleven', 'best_eleven',
+                      'best_2nd_team']:
+            # row_names contains metrics names and row_values its contents
+            row_names.append(out[1] + "_number_of_players")
+            row_values.append(len(out[0]))
+            [row_names, row_values] = team_summary_helper(
+                row_names, row_values, out[1] + "_s_over", out[0]['s_over'])
+            [row_names, row_values] = team_summary_helper(
+                row_names, row_values, out[1] + "_1st_norm_over",
+                players_internal.loc[out[0].index]['1st_norm_over'])
+            [row_names, row_values] = team_summary_helper(
+                row_names, row_values, out[1] + "_age",
+                players_internal.loc[out[0].index]['Idade'])
+    team_summary = {IN_GAME_DATE: row_values}
+    team_summary = pd.DataFrame(team_summary, index=row_names, )
+    team_summary = team_summary.rename_axis('category')
+    return team_summary
+
+
 # Save xlsx results for processed data and a csv for raw data
 def save_results(outputs, players_internal):
-    # Before writting, try to read the last results file and get previous team summary and all player notes
+    # Before writting, try to read the last results file and get previous team summary
+    # and all player notes
     all_files = os.listdir(OUTPUT_DIR)
-    results_files = [file for file in all_files if (file.endswith('.xlsx') and file.startswith('results'))]
-    most_recent_file = max(results_files, key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)))
+    results_files = [file for file in all_files if
+                     (file.endswith('.xlsx') and file.startswith('results'))]
+    most_recent_file = max(results_files,
+                           key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)))
 
     # Read each tab as a separate dataframe
     all_tabs = pd.read_excel(os.path.join(OUTPUT_DIR, most_recent_file), sheet_name=None)
@@ -426,18 +460,20 @@ def save_results(outputs, players_internal):
         else:
             player_tabs.append(df)
 
-    all_notes = pd.concat(all_tabs).groupby('IDU')['note'].apply(lambda x: ''.join(set(filter(None, x)))).reset_index()
-
-
+    # Read all notes and create a per player notes df
+    all_player_tabs_df = pd.concat(player_tabs)
+    all_player_tabs_df['note'] = all_player_tabs_df['note'].fillna("")
+    all_player_tabs_df['note'] = all_player_tabs_df['note'].astype(str)
+    all_notes = all_player_tabs_df.groupby('IDU')['note'].apply(
+        lambda x: ''.join(set(filter(None, x)))).reset_index()
+    all_notes = all_notes.set_index("IDU")
 
     # Create team summary
-    for out in outputs:
-        if out[1] in ['under_17_best_11', 'under_19_best_11', 'best_11', 'best_2nd_team']:
-            average_overal = outputs[0][0]['s_over'].mean()
+    team_summary = team_summary.set_index("category")
+    new_team_summary = create_team_summary(outputs, players_internal)
+    new_team_summary = team_summary.join(new_team_summary)
 
-
-
-    # Define file names
+    # Define output file names
     all_files = os.listdir(OUTPUT_DIR)
     i = 1
     while True:
@@ -454,9 +490,13 @@ def save_results(outputs, players_internal):
 
     # Save results xlsx
     with pd.ExcelWriter(os.path.join(OUTPUT_DIR, results_name)) as writer: # pylint: disable=abstract-class-instantiated
+        # First add team summary
+        new_team_summary.to_excel(writer, sheet_name="team_summary", index=True, float_format="%.2f")
+        # Now add all players tabs
         for out in outputs:
-            make_df_printable(out[0], players_internal).to_excel(writer, sheet_name=out[1],
-                                                                 index=True, float_format="%.2f")
+            make_df_printable(out[0], players_internal, all_notes).to_excel(
+                writer, sheet_name=out[1], index=True, float_format="%.2f")
+    # Also save raw data
     players_internal.to_csv(os.path.join(OUTPUT_DIR, raw_name), index=True)
 
 ################## Main ##################
