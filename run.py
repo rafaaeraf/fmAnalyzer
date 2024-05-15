@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import sys
 
 import numpy as np
@@ -7,7 +8,7 @@ import pandas as pd
 
 
 ################## Inputs ##################
-IN_GAME_DATE = "2030-10-05" # YYYY-MM-DD
+IN_GAME_DATE = "2029-12-05" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
@@ -175,8 +176,34 @@ def handle_missing_attributes(row, attributes_internal, average_attributes_pos_i
             row.at[attribute_name] = (float(range_attribute[0]) + float(range_attribute[1])) / 2
     return row
 
+# Create new fake roles, one per position that represent that position in general
+# Create an average of all weights for the roles on that positions to represent the general
+# weights per position
+def create_general_roles(players_internal, positions_internal, weights_internal):
+    # Handle positions dataframe
+    all_positions = get_all_possible_positions(players_internal)
+    fake_roles = pd.DataFrame({"full_name": [s + " - General" for s in all_positions],
+                               "short_name": [s + "-Ge" for s in all_positions],
+                               "positions": all_positions})
+    ret_positions = pd.concat([positions_internal, fake_roles], ignore_index=True)
+
+    # Handle weights dataframe
+    # Dict used to get the average of the normal/green/blue attributes
+    weights_general_dict = {"green": 1, "blue": 0, "normal": -1}
+    weights_general_dict_reverse = {v: k for k, v in weights_general_dict.items()}
+    weights_numeric = weights_internal.replace(weights_general_dict)
+    for pos in fake_roles["positions"]:
+        relevant_roles = positions_internal.loc[
+            positions_internal["positions"].str.contains(re.escape(pos), na=False), "full_name"]
+        relevant_weights = weights_numeric.loc[:, relevant_roles]
+        relevant_weights = relevant_weights.mean(axis=1).round(0)
+        relevant_weights.replace(weights_general_dict_reverse, inplace=True)
+        relevant_weights.name = fake_roles.loc[fake_roles["positions"] == pos, "full_name"].iloc[0]
+        weights_internal = pd.concat([weights_internal, relevant_weights], axis=1)
+    return ret_positions, weights_internal
+
 # For each player role, gets the weights_internal for that role, multiply by each player
-# attributes_internal and divide by sum of the weigths, so we get a result between 0 and 20
+# attributes_internal and divide by sum of the weights, so we get a result between 0 and 20
 def calculate_overall(positions_internal, weights_internal, players_internal,
                       player_roles_internal):
     ret = pd.DataFrame()
@@ -471,7 +498,7 @@ def save_results(outputs, players_internal):
     # Create team summary
     team_summary = team_summary.set_index("category")
     new_team_summary = create_team_summary(outputs, players_internal)
-    new_team_summary = team_summary.join(new_team_summary)
+    new_team_summary = team_summary.join(new_team_summary, rsuffix="_1")
 
     # Define output file names
     all_files = os.listdir(OUTPUT_DIR)
@@ -480,13 +507,7 @@ def save_results(outputs, players_internal):
         results_name = "results_" + str(i) + ".xlsx"
         if results_name not in all_files:
             break
-        i = i +1
-    i = 1
-    while True:
-        raw_name = "raw_data_" + str(i) + ".csv"
-        if raw_name not in all_files:
-            break
-        i = i +1
+        i = i + 1
 
     # Save results xlsx
     with pd.ExcelWriter(os.path.join(OUTPUT_DIR, results_name)) as writer: # pylint: disable=abstract-class-instantiated
@@ -496,8 +517,8 @@ def save_results(outputs, players_internal):
         for out in outputs:
             make_df_printable(out[0], players_internal, all_notes).to_excel(
                 writer, sheet_name=out[1], index=True, float_format="%.2f")
-    # Also save raw data
-    players_internal.to_csv(os.path.join(OUTPUT_DIR, raw_name), index=True)
+        # Also save raw data
+        players_internal.to_excel(writer, sheet_name="raw_data", index=True, float_format="%.2f")
 
 ################## Main ##################
 def main():
@@ -552,6 +573,9 @@ def main():
     # Convert attributes to numeric
     players = convert_df_columns_to_numeric(
         players, attributes.loc[attributes["player_coach"] == "player", "short_name"])
+
+    # Add general roles to positions and weights df
+    positions, weights = create_general_roles(players, positions, weights)
 
     # Replace the attribute colors with weight values
     weights.replace(WEIGHTS_DICT, inplace=True)
@@ -694,7 +718,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-#weigths = convertDfColumnsToNumeric(weights, [c for c in weights.columns if c != "short_name"])
+#weights = convertDfColumnsToNumeric(weights, [c for c in weights.columns if c != "short_name"])
 
 #i = 0
 #for a in players["Pas"]:
