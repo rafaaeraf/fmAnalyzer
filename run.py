@@ -8,12 +8,12 @@ import pandas as pd
 
 
 ################## Inputs ##################
-IN_GAME_DATE = "2029-12-05" # YYYY-MM-DD
+IN_GAME_DATE = "2029-12-20" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
 WEIGHTS_DICT = {"green": 5, "blue": 3, "normal": 1}
-TEAM_FORMATION = ["GR", "D(E)", "D(C)", "D(C)", "D(D)", "MD", "M(C)", "M(C)", "MO(C)", "PL(C)",
+TEAM_FORMATION = ["GR", "D(D)", "D(C)", "D(C)", "D(E)", "MD", "M(C)", "M(C)", "MO(C)", "PL(C)",
                    "PL(C)"]
 
 ################## Methods ##################
@@ -142,7 +142,13 @@ def convert_df_columns_to_numeric(df, columns):
 def get_all_possible_positions(players_internal):
     all_positions = [p.split(",") for p in players_internal["edited_positions"].unique()]
     all_positions = np.unique(np.concatenate(all_positions))
+    # Get unique values from TEAM_FORMATION keeping the order and add new values found in players DB
+    all_positions = list(dict.fromkeys(TEAM_FORMATION)) + [
+        pos for pos in all_positions if pos not in TEAM_FORMATION]
     return all_positions
+
+def filter_players_by_position(df, pos):
+    return df[df["edited_positions"].str.contains(pos,regex=False)]
 
 def get_average_attribute_per_position(players_internal, attributes_internal):
     all_positions = get_all_possible_positions(players_internal)
@@ -150,8 +156,7 @@ def get_average_attribute_per_position(players_internal, attributes_internal):
     complete_players = players_internal[players_internal["data_completion"] == "complete"]
     for pos in all_positions:
         relevant_attributes = get_relevant_attributes(pos, attributes_internal)
-        filtered_df = complete_players[complete_players["edited_positions"]
-                                       .str.contains(pos,regex=False)]
+        filtered_df = filter_players_by_position(complete_players, pos)
         filtered_df = filtered_df[relevant_attributes]
         filtered_df = convert_df_columns_to_numeric(filtered_df, relevant_attributes)
         ret = pd.concat([ret, filtered_df.mean().to_frame().T], ignore_index=True)
@@ -176,6 +181,9 @@ def handle_missing_attributes(row, attributes_internal, average_attributes_pos_i
             row.at[attribute_name] = (float(range_attribute[0]) + float(range_attribute[1])) / 2
     return row
 
+def filter_positions_df_by_position(positions_internal, pos):
+    return positions_internal.loc[positions_internal["positions"].str.contains(re.escape(pos), na=False), ]
+
 # Create new fake roles, one per position that represent that position in general
 # Create an average of all weights for the roles on that positions to represent the general
 # weights per position
@@ -193,8 +201,7 @@ def create_general_roles(players_internal, positions_internal, weights_internal)
     weights_general_dict_reverse = {v: k for k, v in weights_general_dict.items()}
     weights_numeric = weights_internal.replace(weights_general_dict)
     for pos in fake_roles["positions"]:
-        relevant_roles = positions_internal.loc[
-            positions_internal["positions"].str.contains(re.escape(pos), na=False), "full_name"]
+        relevant_roles = filter_positions_df_by_position(positions_internal, pos)["full_name"]
         relevant_weights = weights_numeric.loc[:, relevant_roles]
         relevant_weights = relevant_weights.mean(axis=1).round(0)
         relevant_weights.replace(weights_general_dict_reverse, inplace=True)
@@ -399,24 +406,35 @@ def handle_percentage_values(percentage_str):
     return float(percentage_str.strip("%")) / 100
 
 # Organize dataframe so it has a nice format for output
-def make_df_printable(df, players_internal, all_notes):
+def make_df_printable(players_internal, all_notes, df=None, positions_internal=None, pos=None):
     # Relevant columns for all
     col_all = ["s_position", "s_role", "s_over",
-                "Nome", "Posição", "Idade", "Clube", "Nac",
-                "Valor", "Preço Exigido", "Salário", "Expira", "Pé Preferido", "Altura", "Peso",
-                "Personalidade", "Nív. Conh.", "Situação de Transferência", "Empréstimo",
-                "analysis_status", "1st_over", "1st_over_role", "2nd_over", "2nd_over_role",
-                "3rd_over", "3rd_over_role", "1st_norm_over", "1st_norm_over_role",
-                "2nd_norm_over", "2nd_norm_over_role", "3rd_norm_over", "3rd_norm_over_role"]
+               "Nome", "analysis_status", "Posição", "Idade", "Clube", "Nac",
+               "Valor", "Preço Exigido", "Salário", "Expira", "Pé Preferido", "Altura", "Peso",
+               "Personalidade", "Nív. Conh.", "Situação de Transferência", "Empréstimo"]
+    # Relevant columns for non per position list
+    col_non_pos = ["1st_over", "1st_over_role", "2nd_over", "2nd_over_role",
+                   "3rd_over", "3rd_over_role", "1st_norm_over", "1st_norm_over_role",
+                   "2nd_norm_over", "2nd_norm_over_role", "3rd_norm_over", "3rd_norm_over_role"]
+
+    # If per position dataframe, filter players dataframe
+    if pos is not None:
+        ret = filter_players_by_position(players_internal, pos)
+        # Order by position general attribute
+        ret = ret.sort_values(pos + "-Ge", ascending=False)
+        col_pos = list(filter_positions_df_by_position(positions_internal, pos)["short_name"])
+        columns = col_all + col_pos + ["norm - " + c for c in col_pos]
     # If top_players dataframe, get info from full players dataframe
-    if "s_position" in df.columns:
+    elif "s_position" in df.columns:
         ret = pd.merge(df, players_internal, how="inner", left_index=True, right_index=True)
         # Order by team formation
         ret = sort_dataframe_by_custom_order(ret, "s_position", TEAM_FORMATION)
+        columns = col_all + col_non_pos
     else:
         ret = df
+        columns = col_all + col_non_pos
     # Get columns available on df
-    ret = ret[[c for c in col_all if c in ret.columns]]
+    ret = ret[[c for c in columns if c in ret.columns]]
     # Add notes column
     notes_column = all_notes.loc[ret.index]
     ret = notes_column.join(ret)
@@ -449,8 +467,7 @@ def create_team_summary(outputs, players_internal):
     row_names = []
     row_values = []
     for out in outputs:
-        if out[1] in ['under_17_best_eleven', 'under_19_best_eleven', 'best_eleven',
-                      'best_2nd_team']:
+        if out[1] in ['18_1st', '21_1st', '1st', '2nd']:
             # row_names contains metrics names and row_values its contents
             row_names.append(out[1] + "_number_of_players")
             row_values.append(len(out[0]))
@@ -469,7 +486,7 @@ def create_team_summary(outputs, players_internal):
 
 
 # Save xlsx results for processed data and a csv for raw data
-def save_results(outputs, players_internal):
+def save_results(outputs, players_internal, positions_internal):
     # Before writting, try to read the last results file and get previous team summary
     # and all player notes
     all_files = os.listdir(OUTPUT_DIR)
@@ -482,7 +499,7 @@ def save_results(outputs, players_internal):
     all_tabs = pd.read_excel(os.path.join(OUTPUT_DIR, most_recent_file), sheet_name=None)
     player_tabs = []
     for sheet_name, df in all_tabs.items():
-        if sheet_name == "team_summary":
+        if sheet_name == "summary":
             team_summary = df
         else:
             player_tabs.append(df)
@@ -512,13 +529,18 @@ def save_results(outputs, players_internal):
     # Save results xlsx
     with pd.ExcelWriter(os.path.join(OUTPUT_DIR, results_name)) as writer: # pylint: disable=abstract-class-instantiated
         # First add team summary
-        new_team_summary.to_excel(writer, sheet_name="team_summary", index=True, float_format="%.2f")
-        # Now add all players tabs
+        new_team_summary.to_excel(writer, sheet_name="summary", index=True, float_format="%.2f")
+        # Add all players tabs
         for out in outputs:
-            make_df_printable(out[0], players_internal, all_notes).to_excel(
+            make_df_printable(players_internal, all_notes, df=out[0]).to_excel(
                 writer, sheet_name=out[1], index=True, float_format="%.2f")
+        # Add all positions tabs
+        for pos in get_all_possible_positions(players_internal):
+            make_df_printable(players_internal, all_notes, positions_internal=positions_internal,
+                              pos=pos).to_excel(writer, sheet_name=pos, index=True,
+                                                float_format="%.2f")
         # Also save raw data
-        players_internal.to_excel(writer, sheet_name="raw_data", index=True, float_format="%.2f")
+        players_internal.to_excel(writer, sheet_name="raw", index=True, float_format="%.2f")
 
 ################## Main ##################
 def main():
@@ -608,49 +630,51 @@ def main():
     lent_best_2nd_team = get_top_players(players[players["club_status"] == "my_club_lent"],
                                          positions, player_roles, [lent_best_eleven],
                                          reference_team=best_2nd_team)
-    # Get best 11 under 19 and 17
-    under_19_best_eleven = get_top_players(
+    # Get best 11 under 21 and 18
+    under_21_best_eleven = get_top_players(
         players[players["club_status"].isin(["my_club_lent", "my_club"])], positions, player_roles,
         [best_eleven, best_2nd_team, lent_best_eleven, lent_best_2nd_team],
-        team_formation_internal=TEAM_FORMATION, age=19)
-    under_17_best_eleven = get_top_players(
+        team_formation_internal=TEAM_FORMATION, age=21)
+    under_18_best_eleven = get_top_players(
         players[players["club_status"].isin(["my_club_lent", "my_club"])], positions, player_roles,
-        [best_eleven, best_2nd_team, lent_best_eleven, lent_best_2nd_team, under_19_best_eleven],
-        team_formation_internal=TEAM_FORMATION, age=17)
+        [best_eleven, best_2nd_team, lent_best_eleven, lent_best_2nd_team, under_21_best_eleven],
+        team_formation_internal=TEAM_FORMATION, age=18)
     # Get the bad players
-    bad_players = exclude_players(players[players["club_status"] == "my_club"],
-                                  [best_eleven, best_2nd_team, under_19_best_eleven,
-                                   under_17_best_eleven])
+    bad_players_my_team = exclude_players(players[players["club_status"] == "my_club"],
+                                  [best_eleven, best_2nd_team, under_21_best_eleven,
+                                   under_18_best_eleven])
     # Get best lent players
     bad_lent = exclude_players(players[players["club_status"] == "my_club_lent"],
-                               [lent_best_eleven, lent_best_2nd_team, under_19_best_eleven,
-                                under_17_best_eleven])
+                               [lent_best_eleven, lent_best_2nd_team, under_21_best_eleven,
+                                under_18_best_eleven])
 
     # Handle players with low knowledge
+    # TODO: Some classifications are not used anymore. Remove
     no_knowledge = players[players["data_completion"] == "all_incomplete"]
     low_knowledge_best_2nd_team = get_top_players(
         players[players["df_type_detailed"] == "search_players"], positions, player_roles,
         [no_knowledge], reference_team=best_2nd_team, knowledge=0.3)
-    low_knowledge_best_2nd_team_under_19 = get_top_players(
+    low_knowledge_best_2nd_team_under_21 = get_top_players(
         players[players["df_type_detailed"] == "search_players"], positions, player_roles,
-        [no_knowledge, low_knowledge_best_2nd_team], reference_team=under_19_best_eleven,
-        age=19, knowledge=0.3)
+        [no_knowledge, low_knowledge_best_2nd_team], reference_team=under_21_best_eleven,
+        age=21, knowledge=0.3)
     low_knowledge_best_top_5 = get_top_players(
         players[players["df_type_detailed"] == "search_players"], positions, player_roles,
-        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_19],
+        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21],
         knowledge=0.3)
-    low_knowledge_best_top_5_under_19 = get_top_players(
+    low_knowledge_best_top_5_under_21 = get_top_players(
         players[players["df_type_detailed"] == "search_players"], positions, player_roles,
-        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_19,
-         low_knowledge_best_top_5], age=19, knowledge=0.3)
+        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21,
+         low_knowledge_best_top_5], age=21, knowledge=0.3)
     low_knowledge_bad_players = exclude_players(
         players[(players["df_type_detailed"] == "search_players") & (players["Nív. Conh."] <= 0.3)],
-        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_19,
-         low_knowledge_best_top_5, low_knowledge_best_top_5_under_19])
+        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21,
+         low_knowledge_best_top_5, low_knowledge_best_top_5_under_21])
     low_knowledge_suggest_scout = exclude_players(
         players[(players["df_type_detailed"] == "search_players") & (players["Nív. Conh."] <= 0.3)],
         [low_knowledge_bad_players])
     # Players with knowledge
+    # TODO: Some classifications are not used anymore. Remove
     hire_best_eleven = get_top_players(players[players["df_type_detailed"] == "search_players"],
                                        positions, player_roles,
                                        [no_knowledge, low_knowledge_bad_players,
@@ -660,58 +684,49 @@ def main():
                                          [no_knowledge, low_knowledge_bad_players,
                                           low_knowledge_suggest_scout, hire_best_eleven],
                                           reference_team=best_2nd_team)
-    hire_best_under_19 = get_top_players(players[players["df_type_detailed"] == "search_players"],
+    hire_best_under_21 = get_top_players(players[players["df_type_detailed"] == "search_players"],
                                          positions, player_roles,
                                          [no_knowledge, low_knowledge_bad_players,
                                           low_knowledge_suggest_scout, hire_best_eleven,
                                           hire_best_2nd_team],
-                                          reference_team=under_19_best_eleven, age=19)
+                                          reference_team=under_21_best_eleven, age=21)
     non_team_formation_positions = list(set(get_all_possible_positions(players)) -
                                         set(TEAM_FORMATION))
-    best_other_positions = get_top_players(players[players["df_type_detailed"] == "search_players"],
+    hire_best_other_positions = get_top_players(players[players["df_type_detailed"] == "search_players"],
                                            positions, player_roles,
                                            [no_knowledge, low_knowledge_bad_players,
                                             low_knowledge_suggest_scout, hire_best_eleven,
-                                            hire_best_2nd_team, hire_best_under_19],
+                                            hire_best_2nd_team, hire_best_under_21],
                                             team_formation_internal=non_team_formation_positions)
     bad_hire_players = exclude_players(players[players["df_type_detailed"] == "search_players"],
                                        [no_knowledge, low_knowledge_bad_players,
                                         low_knowledge_suggest_scout, hire_best_eleven,
-                                        hire_best_2nd_team, hire_best_under_19,
-                                        best_other_positions])
+                                        hire_best_2nd_team, hire_best_under_21,
+                                        hire_best_other_positions])
 
     # Add a tags column to the players dataframe
     players["analysis_status"] = get_analysis_status(
         players, [(best_eleven, "best_11"), (best_2nd_team, "best_2nd_team"),
                   (lent_best_eleven, "lentbest_11"), (lent_best_2nd_team, "lent_best_2nd_team"),
-                  (under_19_best_eleven, "under_19_best_11"),
-                  (under_17_best_eleven, "under_17_best_11"), (bad_players, "bad_players"),
+                  (under_21_best_eleven, "under_21_best_11"),
+                  (under_18_best_eleven, "under_18_best_11"),
+                  (bad_players_my_team, "bad_players_my_team"),
                   (bad_lent, "bad_lent"), (no_knowledge, "no_knowledge"),
                   (low_knowledge_bad_players, "low_knowledge_bad_players"),
                   (low_knowledge_suggest_scout, "low_knowledge_suggest_scout"),
                   (hire_best_eleven, "hirebest_11"), (hire_best_2nd_team, "hire_best_2nd_team"),
-                  (hire_best_under_19, "hire_best_under_19"),
-                  (best_other_positions, "best_other_positions"),
+                  (hire_best_under_21, "hire_best_under_21"),
+                  (hire_best_other_positions, "hire_best_other_positions"),
                   (bad_hire_players, "bad_hire_players")])
 
-    save_results([(best_eleven, "best_eleven"), (best_2nd_team, "best_2nd_team"),
-                  (under_19_best_eleven, "under_19_best_eleven"),
-                  (under_17_best_eleven, "under_17_best_eleven"),
-                  (lent_best_eleven, "lent_best_eleven"),
-                  (lent_best_2nd_team, "lent_best_2nd_team"),
-                  (bad_players, "bad_players"), (bad_lent, "bad_lent"),
-                  (hire_best_eleven, "hire_best_eleven"),
-                  (hire_best_2nd_team, "hire_best_2nd_team"),
-                  (hire_best_under_19, "hire_best_under_19"),
-                  (best_other_positions, "best_other_positions"),
-                  (low_knowledge_suggest_scout, "low_knowledge_suggest_scout"),
-                  (low_knowledge_best_2nd_team, "low_knowledge_best_2nd_team"),
-                  (low_knowledge_best_2nd_team_under_19, "low_knowledge_best_2nd_team_under_19"),
-                  (low_knowledge_best_top_5, "low_knowledge_best_top_5"),
-                  (low_knowledge_best_top_5_under_19, "low_knowledge_best_top_5_under_19"),
-                  (bad_hire_players, "bad_hire_players"),
-                  (low_knowledge_bad_players, "low_knowledge_bad_players"),
-                  (no_knowledge, "no_knowledge")], players)
+    save_results([(best_eleven, "1st"),
+                  (best_2nd_team, "2nd"),
+                  (under_21_best_eleven, "21_1st"),
+                  (under_18_best_eleven, "18_1st"),
+                  (lent_best_eleven, "lent_1st"),
+                  (lent_best_2nd_team, "lent_2nd"),
+                  (bad_players_my_team, "bad"),
+                  (bad_lent, "bad_lent")], players, positions)
 
     print("end")
 
