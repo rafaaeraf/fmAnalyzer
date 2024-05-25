@@ -6,9 +6,10 @@ import sys
 import numpy as np
 import pandas as pd
 
+from openpyxl import load_workbook
 
 ################## Inputs ##################
-IN_GAME_DATE = "2029-12-20" # YYYY-MM-DD
+IN_GAME_DATE = "2029-12-29" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
@@ -57,6 +58,9 @@ def read_data():
         if len(tmp_df) != 1:
             sys.exit("ERROR: All generated tables should have length 1")
         tmp_df = tmp_df[0]
+        # Check if the source is missing names (FM bug)
+        if tmp_df["Nome"].isnull().any():
+            sys.exit('ERROR: Provided table "' + file + '" have empty names')
         # Add relevant info to df
         tmp_df["source_file"] = file
         tmp_df["timestamp"] = all_files_df[all_files_df["file"] == file]["timestamp"].values[0]
@@ -327,8 +331,8 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
             # Only roles relevant for current missing positions_internal
             filtered_players = filtered_players[filtered_positions["short_name"]]
 
-            if filtered_players.shape[0] == 0:
-                break
+        if filtered_players.shape[0] == 0:
+            break
 
         # Get best player for all of missing positions_internal
         idu, role, max_value = find_max_value_location(filtered_players)
@@ -436,7 +440,8 @@ def make_df_printable(players_internal, all_notes, df=None, positions_internal=N
     # Get columns available on df
     ret = ret[[c for c in columns if c in ret.columns]]
     # Add notes column
-    notes_column = all_notes.loc[ret.index]
+    notes_column = all_notes.reindex(ret.index)
+    notes_column = notes_column.fillna('')
     ret = notes_column.join(ret)
     return ret
 
@@ -495,8 +500,14 @@ def save_results(outputs, players_internal, positions_internal):
     most_recent_file = max(results_files,
                            key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)))
 
+    # Get the tab names we need to read (all but raw)
+    excel = load_workbook(os.path.join(OUTPUT_DIR, most_recent_file), read_only=True,
+                          keep_links=False)
+    tab_names = excel.sheetnames
+    tab_names = [t for t in tab_names if t != "raw"]
+
     # Read each tab as a separate dataframe
-    all_tabs = pd.read_excel(os.path.join(OUTPUT_DIR, most_recent_file), sheet_name=None)
+    all_tabs = pd.read_excel(os.path.join(OUTPUT_DIR, most_recent_file), sheet_name=tab_names)
     player_tabs = []
     for sheet_name, df in all_tabs.items():
         if sheet_name == "summary":
@@ -525,6 +536,12 @@ def save_results(outputs, players_internal, positions_internal):
         if results_name not in all_files:
             break
         i = i + 1
+    i = 1
+    while True:
+        raw_name = "raw_" + str(i) + ".csv"
+        if raw_name not in all_files:
+            break
+        i = i + 1
 
     # Save results xlsx
     with pd.ExcelWriter(os.path.join(OUTPUT_DIR, results_name)) as writer: # pylint: disable=abstract-class-instantiated
@@ -539,8 +556,9 @@ def save_results(outputs, players_internal, positions_internal):
             make_df_printable(players_internal, all_notes, positions_internal=positions_internal,
                               pos=pos).to_excel(writer, sheet_name=pos, index=True,
                                                 float_format="%.2f")
-        # Also save raw data
-        players_internal.to_excel(writer, sheet_name="raw", index=True, float_format="%.2f")
+    # Also save raw data as a csv
+    players_internal.to_csv(os.path.join(OUTPUT_DIR, raw_name), index=True, float_format="%.2f",
+                            encoding='utf-8-sig')
 
 ################## Main ##################
 def main():
@@ -559,6 +577,9 @@ def main():
     coaches = coaches.sort_values("timestamp").drop_duplicates(["IDU"], keep="last")
     players = players.set_index("IDU")
     coaches = coaches.set_index("IDU")
+
+    # Handle player names removing country name
+    players["Nome"] = players["Nome"].str.split(" - ").str[0]
 
     # Handle percentage values
     players["Nív. Conh."] = players["Nív. Conh."].apply(handle_percentage_values)
@@ -618,6 +639,9 @@ def main():
     # Get the top three normalized overalls
     result = players["norm - " + player_roles].apply(get_top_overalls, axis="columns")
     players = pd.concat([players, result], axis="columns")
+
+    # Get a de-fragmented dataframe for players for performance
+    players = players.copy()
 
     # Get best 11 and best 2nd team
     best_eleven = get_top_players(players[players["club_status"] == "my_club"], positions,
@@ -714,7 +738,7 @@ def main():
                   (bad_lent, "bad_lent"), (no_knowledge, "no_knowledge"),
                   (low_knowledge_bad_players, "low_knowledge_bad_players"),
                   (low_knowledge_suggest_scout, "low_knowledge_suggest_scout"),
-                  (hire_best_eleven, "hirebest_11"), (hire_best_2nd_team, "hire_best_2nd_team"),
+                  (hire_best_eleven, "hire_best_11"), (hire_best_2nd_team, "hire_best_2nd_team"),
                   (hire_best_under_21, "hire_best_under_21"),
                   (hire_best_other_positions, "hire_best_other_positions"),
                   (bad_hire_players, "bad_hire_players")])
