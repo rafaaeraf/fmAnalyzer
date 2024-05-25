@@ -1,4 +1,4 @@
-full_name,short_name,positions
+﻿full_name,short_name,positions
 Guarda-Redes Líbero Defender,GRL-De,GR
 Guarda-Redes Líbero Apoiar,GRL-Ap,GR
 Guarda-Redes Líbero Atacar,GRL-At,GR
@@ -80,25 +80,25 @@ Jogador Alvo Atacar,Alv-At,PL(C)
 Número 10 Atacar,N10-At,"MO(C),MO(D),MO(E),PL(C)"
 Ponta-De-Lança Atacar,PL-At,PL(C)
 Ponta-De-Lança-Fixo Atacar,PFL-At,PL(C)
-Treinador Adjunto,,
-Treinador,,
-Preparador,,
-Diretor Desportivo,,
-Cientista Desportivo,,
-Analista Dados,,
-Preparador Físico,,
-Treinador de Guarda-redes,,
-Olheiro,,
-Fisioterapeuta,,
-Director do Futebol Jovem,,
-Gestor de Jogadores Emprestados,,
-Director Técnico,,
-Guarda-Redes Defesa de remates,,
-Guarda-Redes Jogo de mãos,,
-Defesa Táticas,,
-Defesa Técnicos,,
-Atacante Tácticas,,
-Atacante Técnicos,,
-Posse Tácticas,,
-Posse Técnicos,,
-Físico Ambos,,
+Treinador Adjunto,Trei_Adj,
+Treinador,Trei,
+Preparador,Prep,
+Diretor Desportivo,Dir_Des,
+Cientista Desportivo,Cien_Des,
+Analista Dados,Ana_Dad,
+Preparador Físico,Prep_Fis,
+Treinador de Guarda-redes,Trei_GR,
+Olheiro,Olhe,
+Fisioterapeuta,Fisiot,
+Director do Futebol Jovem,Dir_Fut_Jo,
+Gestor de Jogadores Emprestados,Ges_Jog_Emp,
+Director Técnico,Dir_Tec,
+Guarda-Redes Defesa de remates,GR_DR,
+Guarda-Redes Jogo de mãos,GR_JM,
+Defesa Táticas,Def_Tat,
+Defesa Técnicos,Def_Tec,
+Atacante Tácticas,Ata_Tac,
+Atacante Técnicos,Ata_Tec,
+Posse Tácticas,Pos_Tac,
+Posse Técnicos,Pos_Tec,
+Físico Ambos,Fisico,

@@ -6,7 +6,6 @@ Can we identify positions that player really plays vs can barely play?
 Look at players age average evolution to decide when we should make the cuts considering evolution (current 19 and 17)
 Update getTopPlayers for using averall and compare differences
 Handle players in experience in the club
-Handle coach "positions"
 Hanble attributes that are important but never colored (Cantos, Lançamento longo, livres, penalti, determinação, liderança, predisposição física, (Tendência) para Socar)
 Reselect relevant columns exported on FM (remove, empty, add other (reputation)) - Remove: Capacidade, Potencial, Duração, Capacidade, Potencial, capacidade para o papel. Remove coach: reputação mundial
 Rename and organize views on FM
@@ -18,14 +17,12 @@ _____________________________
 TODO - Big tasks
 Automatically categorize team players into things like Best player per position, high salary for overall attribute, young with potential growth, good cheap replacement player, etc
 Identify team players that should train in other positions
-Reports for coaches (similar of what to do with players)
 Coaches training suggestions
 Reports for market (hire players/managers)
 Analysis based on multiple factors (on market and club players): age, attribute, cost
 Nice plots
 Report in an good way (pdf/html + csv/xlsx)
 Support player statistics (moneyball analysis)
-Print per role results (best team players and best hiring possibilities)
 
 
 _____________________________

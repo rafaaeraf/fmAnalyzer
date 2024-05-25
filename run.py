@@ -13,7 +13,8 @@ IN_GAME_DATE = "2029-12-29" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
-WEIGHTS_DICT = {"green": 5, "blue": 3, "normal": 1}
+WEIGHTS_DICT_PLAYERS = {"green": 5, "blue": 3, "normal": 1}
+WEIGHTS_DICT_COACHES = {"green": 5, "blue": 3, "normal": 0}
 TEAM_FORMATION = ["GR", "D(D)", "D(C)", "D(C)", "D(E)", "MD", "M(C)", "M(C)", "MO(C)", "PL(C)",
                    "PL(C)"]
 
@@ -125,8 +126,12 @@ def get_relevant_attributes(edited_positions, attributes_internal):
                                    (attributes_internal["gk_attribute"] == "non_gk")]["short_name"]
 
 def check_data_completion(row, attributes_internal):
-    edited_positions = row["edited_positions"]
-    relevant_attributes = get_relevant_attributes(edited_positions, attributes_internal)
+    if row["df_type"] == "coaches":
+        relevant_attributes = attributes_internal.loc[
+            attributes_internal["player_coach"] == "coach", "short_name"]
+    else:
+        edited_positions = row["edited_positions"]
+        relevant_attributes = get_relevant_attributes(edited_positions, attributes_internal)
     filtered_df = row[relevant_attributes]
     if all(pd.isna(filtered_df.values)):
         return "all_incomplete"
@@ -186,7 +191,8 @@ def handle_missing_attributes(row, attributes_internal, average_attributes_pos_i
     return row
 
 def filter_positions_df_by_position(positions_internal, pos):
-    return positions_internal.loc[positions_internal["positions"].str.contains(re.escape(pos), na=False), ]
+    return positions_internal.loc[positions_internal["positions"].str.contains(re.escape(pos),
+                                                                               na=False), ]
 
 # Create new fake roles, one per position that represent that position in general
 # Create an average of all weights for the roles on that positions to represent the general
@@ -410,9 +416,9 @@ def handle_percentage_values(percentage_str):
     return float(percentage_str.strip("%")) / 100
 
 # Organize dataframe so it has a nice format for output
-def make_df_printable(players_internal, all_notes, df=None, positions_internal=None, pos=None):
+def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=None, pos=None):
     # Relevant columns for all
-    col_all = ["s_position", "s_role", "s_over",
+    col_all_players = ["s_position", "s_role", "s_over",
                "Nome", "analysis_status", "Posição", "Idade", "Clube", "Nac",
                "Valor", "Preço Exigido", "Salário", "Expira", "Pé Preferido", "Altura", "Peso",
                "Personalidade", "Nív. Conh.", "Situação de Transferência", "Empréstimo"]
@@ -422,22 +428,31 @@ def make_df_printable(players_internal, all_notes, df=None, positions_internal=N
                    "2nd_norm_over", "2nd_norm_over_role", "3rd_norm_over", "3rd_norm_over_role"]
 
     # If per position dataframe, filter players dataframe
-    if pos is not None:
-        ret = filter_players_by_position(players_internal, pos)
+    if all(full_df["df_type"] == "coaches"):
+        # Relevant columns for coaches dataframe
+        col_coaches = ["Nome", "Função", "Função Preferida", "Idade", "Clube", "Nac", "Salário",
+                       "Expira", "Tipo de Treino", "Qualificações de Treinador", "Personalidade",
+                       "Jovens"]
+        col_coaches = col_coaches + list(
+            positions_internal.loc[positions_internal["positions"].isna(), "short_name"].unique())
+        columns = col_coaches + col_non_pos
+        ret = full_df
+    elif pos is not None:
+        ret = filter_players_by_position(full_df, pos)
         # Order by position general attribute
         ret = ret.sort_values(pos + "-Ge", ascending=False)
         col_pos = list(filter_positions_df_by_position(positions_internal, pos)["short_name"])
-        columns = col_all + col_pos + ["norm - " + c for c in col_pos]
+        columns = col_all_players + col_pos + ["norm - " + c for c in col_pos]
     # If top_players dataframe, get info from full players dataframe
-    elif "s_position" in df.columns:
-        ret = pd.merge(df, players_internal, how="inner", left_index=True, right_index=True)
+    elif "s_position" in filtered_df.columns:
+        ret = pd.merge(filtered_df, full_df, how="inner", left_index=True, right_index=True)
         # Order by team formation
         ret = sort_dataframe_by_custom_order(ret, "s_position", TEAM_FORMATION)
-        columns = col_all + col_non_pos
+        columns = col_all_players + col_non_pos
     else:
-        ret = df
-        columns = col_all + col_non_pos
-    # Get columns available on df
+        ret = filtered_df
+        columns = col_all_players + col_non_pos
+    # Get columns available on filtered_df
     ret = ret[[c for c in columns if c in ret.columns]]
     # Add notes column
     notes_column = all_notes.reindex(ret.index)
@@ -489,9 +504,18 @@ def create_team_summary(outputs, players_internal):
     team_summary = team_summary.rename_axis('category')
     return team_summary
 
+def get_next_available_file_name(base_name, extension):
+    all_files = os.listdir(OUTPUT_DIR)
+    i = 1
+    while True:
+        ret = base_name + str(i) + extension
+        if ret not in all_files:
+            break
+        i = i + 1
+    return ret
 
 # Save xlsx results for processed data and a csv for raw data
-def save_results(outputs, players_internal, positions_internal):
+def save_results(outputs, players_internal, coaches_internal, positions_internal):
     # Before writting, try to read the last results file and get previous team summary
     # and all player notes
     all_files = os.listdir(OUTPUT_DIR)
@@ -529,19 +553,9 @@ def save_results(outputs, players_internal, positions_internal):
     new_team_summary = team_summary.join(new_team_summary, rsuffix="_1")
 
     # Define output file names
-    all_files = os.listdir(OUTPUT_DIR)
-    i = 1
-    while True:
-        results_name = "results_" + str(i) + ".xlsx"
-        if results_name not in all_files:
-            break
-        i = i + 1
-    i = 1
-    while True:
-        raw_name = "raw_" + str(i) + ".csv"
-        if raw_name not in all_files:
-            break
-        i = i + 1
+    results_name = get_next_available_file_name("results_", ".xlsx")
+    raw_players_name = get_next_available_file_name("raw_players_", ".csv")
+    raw_coaches_name = get_next_available_file_name("raw_coaches_", ".csv")
 
     # Save results xlsx
     with pd.ExcelWriter(os.path.join(OUTPUT_DIR, results_name)) as writer: # pylint: disable=abstract-class-instantiated
@@ -549,16 +563,22 @@ def save_results(outputs, players_internal, positions_internal):
         new_team_summary.to_excel(writer, sheet_name="summary", index=True, float_format="%.2f")
         # Add all players tabs
         for out in outputs:
-            make_df_printable(players_internal, all_notes, df=out[0]).to_excel(
+            make_df_printable(players_internal, all_notes, filtered_df=out[0]).to_excel(
                 writer, sheet_name=out[1], index=True, float_format="%.2f")
         # Add all positions tabs
         for pos in get_all_possible_positions(players_internal):
             make_df_printable(players_internal, all_notes, positions_internal=positions_internal,
                               pos=pos).to_excel(writer, sheet_name=pos, index=True,
                                                 float_format="%.2f")
+        # Add coaches tab
+        make_df_printable(
+            coaches_internal, all_notes, positions_internal=positions_internal).to_excel(
+                writer, sheet_name="coach", index=True, float_format="%.2f")
     # Also save raw data as a csv
-    players_internal.to_csv(os.path.join(OUTPUT_DIR, raw_name), index=True, float_format="%.2f",
-                            encoding='utf-8-sig')
+    players_internal.to_csv(os.path.join(OUTPUT_DIR, raw_players_name),
+                            index=True, float_format="%.2f", encoding='utf-8-sig')
+    coaches_internal.to_csv(os.path.join(OUTPUT_DIR, raw_coaches_name),
+                            index=True, float_format="%.2f", encoding='utf-8-sig')
 
 ################## Main ##################
 def main():
@@ -605,6 +625,11 @@ def main():
     # incomplete, all incomplete
     players["data_completion"] = players.apply(lambda x: check_data_completion(x, attributes),
                                                axis=1)
+    coaches["data_completion"] = coaches.apply(lambda x: check_data_completion(x, attributes),
+                                               axis=1)
+
+    # For coaches, there is no incomplete attributes. Keep only complete rows
+    coaches = coaches[coaches["data_completion"] == "complete"]
 
     # Get average attribute value per position
     average_attributes_pos = get_average_attribute_per_position(players, attributes)
@@ -616,32 +641,47 @@ def main():
     # Convert attributes to numeric
     players = convert_df_columns_to_numeric(
         players, attributes.loc[attributes["player_coach"] == "player", "short_name"])
+    coaches = convert_df_columns_to_numeric(
+        coaches, attributes.loc[attributes["player_coach"] == "coach", "short_name"])
 
     # Add general roles to positions and weights df
     positions, weights = create_general_roles(players, positions, weights)
 
     # Replace the attribute colors with weight values
-    weights.replace(WEIGHTS_DICT, inplace=True)
+    player_roles_full_name = positions.loc[positions["positions"].notna(), "full_name"].unique()
+    coach_roles_full_name = positions.loc[positions["positions"].isna(), "full_name"].unique()
+    weights[player_roles_full_name] = weights[player_roles_full_name].replace(WEIGHTS_DICT_PLAYERS)
+    weights[coach_roles_full_name] = weights[coach_roles_full_name].replace(WEIGHTS_DICT_COACHES)
 
     # Calculate overall per role
     player_roles = positions.loc[positions["positions"].notna(), "short_name"].unique()
     players = pd.concat([players, calculate_overall(positions, weights, players, player_roles)],
                         axis="columns")
+    coach_roles = positions.loc[positions["positions"].isna(), "short_name"].unique()
+    coaches = pd.concat([coaches, calculate_overall(positions, weights, coaches, coach_roles)],
+                        axis="columns")
 
     # Get the top three overalls
     result = players[player_roles].apply(get_top_overalls, axis="columns")
     players = pd.concat([players, result], axis="columns")
+    result = coaches[coach_roles].apply(get_top_overalls, axis="columns")
+    coaches = pd.concat([coaches, result], axis="columns")
 
     # Calculate normalized overalls
     players = pd.concat([players, calculate_normalized_overall(players, player_roles)],
+                        axis="columns")
+    coaches = pd.concat([coaches, calculate_normalized_overall(coaches, coach_roles)],
                         axis="columns")
 
     # Get the top three normalized overalls
     result = players["norm - " + player_roles].apply(get_top_overalls, axis="columns")
     players = pd.concat([players, result], axis="columns")
+    result = coaches["norm - " + coach_roles].apply(get_top_overalls, axis="columns")
+    coaches = pd.concat([coaches, result], axis="columns")
 
     # Get a de-fragmented dataframe for players for performance
     players = players.copy()
+    coaches = coaches.copy()
 
     # Get best 11 and best 2nd team
     best_eleven = get_top_players(players[players["club_status"] == "my_club"], positions,
@@ -716,12 +756,12 @@ def main():
                                           reference_team=under_21_best_eleven, age=21)
     non_team_formation_positions = list(set(get_all_possible_positions(players)) -
                                         set(TEAM_FORMATION))
-    hire_best_other_positions = get_top_players(players[players["df_type_detailed"] == "search_players"],
-                                           positions, player_roles,
-                                           [no_knowledge, low_knowledge_bad_players,
-                                            low_knowledge_suggest_scout, hire_best_eleven,
-                                            hire_best_2nd_team, hire_best_under_21],
-                                            team_formation_internal=non_team_formation_positions)
+    hire_best_other_positions = get_top_players(
+        players[players["df_type_detailed"] == "search_players"],
+        positions, player_roles,
+        [no_knowledge, low_knowledge_bad_players, low_knowledge_suggest_scout, hire_best_eleven,
+         hire_best_2nd_team, hire_best_under_21],
+         team_formation_internal=non_team_formation_positions)
     bad_hire_players = exclude_players(players[players["df_type_detailed"] == "search_players"],
                                        [no_knowledge, low_knowledge_bad_players,
                                         low_knowledge_suggest_scout, hire_best_eleven,
@@ -750,7 +790,7 @@ def main():
                   (lent_best_eleven, "lent_1st"),
                   (lent_best_2nd_team, "lent_2nd"),
                   (bad_players_my_team, "bad"),
-                  (bad_lent, "bad_lent")], players, positions)
+                  (bad_lent, "bad_lent")], players, coaches, positions)
 
     print("end")
 
