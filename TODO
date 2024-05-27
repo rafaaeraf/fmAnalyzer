@@ -1,11 +1,13 @@
 TODO - Small tasks
+Make top selection simpler, using only general to order people
+Norm goalkeeper is broken
+Handle players in experience in the club in specific tab
 Why good players are no hire? Andy Connor - Inglês
 Results - smaller column names, team summary, column width, role as full name
 Html results
 Can we identify positions that player really plays vs can barely play?
 Look at players age average evolution to decide when we should make the cuts considering evolution (current 19 and 17)
 Update getTopPlayers for using averall and compare differences
-Handle players in experience in the club
 Hanble attributes that are important but never colored (Cantos, Lançamento longo, livres, penalti, determinação, liderança, predisposição física, (Tendência) para Socar)
 Reselect relevant columns exported on FM (remove, empty, add other (reputation)) - Remove: Capacidade, Potencial, Duração, Capacidade, Potencial, capacidade para o papel. Remove coach: reputação mundial
 Rename and organize views on FM

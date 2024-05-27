@@ -29,7 +29,10 @@ def get_df_type_detailed(df):
     if get_df_type(df) == "players":
         # If all players are from the club or lent by the club, then this file is a
         # club export file
-        if all((df["Clube"] == CLUB_NAME) | (df["Emprestado Por"] == CLUB_NAME)):
+        # There is an exception when the player is out in experience. There is no way to
+        # detect that. So we say that if almost all players are from the club, this must
+        # be a club file
+        if (sum(df["Clube"] == CLUB_NAME) + sum(df["Emprestado Por"] == CLUB_NAME)) / len(df) > 0.9:
             return "my_club_players"
         else:
             return "search_players"
@@ -53,6 +56,10 @@ def read_data():
     players_list = []
     coaches_list = []
 
+    club_players_df = None
+    club_coaches_df = None
+    club_players_last_date = 0
+    club_coaches_last_date = 0
     for file in all_files_df["file"]:
         # Read html
         tmp_df = pd.read_html(file, header=0, encoding="utf-8", na_values=["-", "- -"])
@@ -69,11 +76,28 @@ def read_data():
         df_type = get_df_type(tmp_df)
         tmp_df["df_type"] = df_type
         tmp_df["df_type_detailed"] = get_df_type_detailed(tmp_df)
-        # Append to the list
-        if df_type == "players":
-            players_list.append(tmp_df)
+        # We should have only one coaches and players df, to avoid having people that left
+        # Keep the latest one and only append in the end
+        if all(tmp_df["df_type_detailed"] == "my_club_players"):
+            if (os.path.getmtime(file) > club_players_last_date):
+                club_players_last_date = os.path.getmtime(file)
+                club_players_df = tmp_df
+        elif all(tmp_df["df_type_detailed"] == "my_club_coaches"):
+            if (os.path.getmtime(file) > club_coaches_last_date):
+                club_coaches_last_date = os.path.getmtime(file)
+                club_coaches_df = tmp_df
         else:
-            coaches_list.append(tmp_df)
+            # Append search dfs to the list
+            if df_type == "players":
+                players_list.append(tmp_df)
+            else:
+                coaches_list.append(tmp_df)
+
+    # After looking at all files, add the club ones to the list
+    if club_players_df is not None:
+        players_list.append(club_players_df)
+    if club_coaches_df is not None:
+        coaches_list.append(club_coaches_df)
 
     # Concatenate DataFrames outside the loop
     players_ret = pd.concat(players_list, axis=0, ignore_index=True)
@@ -185,7 +209,7 @@ def handle_missing_attributes(row, attributes_internal, average_attributes_pos_i
             if len(selected_attribute) != 1:
                 sys.exit("ERROR: Unexpected length for the selected_attribute")
             row.at[attribute_name] = float(selected_attribute.iloc[0])
-        elif "-" in row[attribute_name]:
+        elif "-" in str(row[attribute_name]):
             range_attribute = row[attribute_name].split("-")
             row.at[attribute_name] = (float(range_attribute[0]) + float(range_attribute[1])) / 2
     return row
