@@ -79,11 +79,11 @@ def read_data():
         # We should have only one coaches and players df, to avoid having people that left
         # Keep the latest one and only append in the end
         if all(tmp_df["df_type_detailed"] == "my_club_players"):
-            if (os.path.getmtime(file) > club_players_last_date):
+            if os.path.getmtime(file) > club_players_last_date:
                 club_players_last_date = os.path.getmtime(file)
                 club_players_df = tmp_df
         elif all(tmp_df["df_type_detailed"] == "my_club_coaches"):
-            if (os.path.getmtime(file) > club_coaches_last_date):
+            if os.path.getmtime(file) > club_coaches_last_date:
                 club_coaches_last_date = os.path.getmtime(file)
                 club_coaches_df = tmp_df
         else:
@@ -323,9 +323,9 @@ def exclude_players(players_internal, players_to_exclude):
             filtered_players = filtered_players.drop(players_to_drop)
     return filtered_players
 
-# Given a players_internal dataframe returns the best players_internal
-# If team formation is provided, 11 players_internal for these positions_internal are returned
-def get_top_players(players_internal, positions_internal, player_roles_internal,
+# Given a players_internal dataframe returns the best players
+# If team formation is provided, 11 players for these positions are returned
+def get_top_players(players_internal, positions_internal,
                     players_to_exclude=None, team_formation_internal=None, age=None, num_players=5,
                     reference_team=None, knowledge=None):
     filtered_players = exclude_players(players_internal, players_to_exclude)
@@ -348,20 +348,19 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
         filtered_players = filtered_players.apply(remove_unplayed_positions, axis=1,
                                                   positions_internal=positions_internal)
     # Get overalls
-    filtered_players = filtered_players[player_roles_internal]
+    all_general_roles = [p + "-Ge" for p in get_all_possible_positions(players_internal)]
+    filtered_players = filtered_players[all_general_roles]
     ret = []
     add_player_to_ret = True
 
     while True:
         if team_formation_internal is not None or isinstance(reference_team, pd.DataFrame):
-            # Get the roles relevant for team formation missing positions_internal
-            filtered_positions = positions_internal[positions_internal["positions"].apply(
-                lambda x: any(item in str(x) for
-                              item in missing_positions) if not pd.isna(x) else False)]
-            # Only roles relevant for current missing positions_internal
-            filtered_players = filtered_players[filtered_positions["short_name"]]
+            # Keep only the general roles of team formation missing positions
+            missing_general_roles = [p + "-Ge" for p in set(missing_positions)]
+            filtered_players = filtered_players[missing_general_roles]
 
-        if filtered_players.shape[0] == 0:
+        if (filtered_players.shape[0] == 0 or filtered_players.shape[1] == 0 or
+            filtered_players.isna().all().all()):
             break
 
         # Get best player for all of missing positions_internal
@@ -369,21 +368,8 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
 
         # If position based, check in which position player will play
         if team_formation_internal is not None or isinstance(reference_team, pd.DataFrame):
-            # Get a position that the team still needs, that is compatible with the role
-            # and the player plays
-            role_positions = positions_internal.loc[
-                positions_internal["short_name"] == role, "positions"].item().split(",")
-            player_positions = players_internal.loc[idu, "edited_positions"].split(",")
-            acceptable_positions = list(set(role_positions) & set(player_positions) &
-                                        set(missing_positions))
-            # In some cases, player can play in one role that fills a position he plays, but do not
-            # play for a position we need
-            if len(acceptable_positions) > 0:
-                selected_position = random.choice(acceptable_positions)
-            else:
-                # Give up on this player
-                filtered_players = filtered_players.drop(idu)
-                continue
+            selected_position = positions_internal.loc[positions_internal["short_name"] == role,
+                                                       "positions"].iloc[0]
         else:
             selected_position = players_internal.loc[idu, "edited_positions"]
 
@@ -419,8 +405,7 @@ def get_top_players(players_internal, positions_internal, player_roles_internal,
             if num_players == 0:
                 break
 
-    ret = pd.DataFrame(ret, columns=["IDU", "s_position", "s_role",
-                                     "s_over"])
+    ret = pd.DataFrame(ret, columns=["IDU", "s_position", "s_role", "s_over"])
     ret = ret.set_index("IDU")
     return ret
 
@@ -442,10 +427,10 @@ def handle_percentage_values(percentage_str):
 # Organize dataframe so it has a nice format for output
 def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=None, pos=None):
     # Relevant columns for all
-    col_all_players = ["s_position", "s_role", "s_over",
-               "Nome", "analysis_status", "Posição", "Idade", "Clube", "Nac",
-               "Valor", "Preço Exigido", "Salário", "Expira", "Pé Preferido", "Altura", "Peso",
-               "Personalidade", "Nív. Conh.", "Situação de Transferência", "Empréstimo"]
+    col_all_players = ["s_position", "s_over", "Nome", "analysis_status", "Posição", "Idade",
+                       "Clube", "Nac", "Valor", "Preço Exigido", "Salário", "Expira",
+                       "Pé Preferido", "Altura", "Peso", "Personalidade", "Nív. Conh.",
+                       "Situação de Transferência", "Empréstimo"]
     # Relevant columns for non per position list
     col_non_pos = ["1st_over", "1st_over_role", "2nd_over", "2nd_over_role",
                    "3rd_over", "3rd_over_role", "1st_norm_over", "1st_norm_over_role",
@@ -709,22 +694,22 @@ def main():
 
     # Get best 11 and best 2nd team
     best_eleven = get_top_players(players[players["club_status"] == "my_club"], positions,
-                                  player_roles, team_formation_internal=TEAM_FORMATION)
+                                  team_formation_internal=TEAM_FORMATION)
     best_2nd_team = get_top_players(players[players["club_status"] == "my_club"], positions,
-                                    player_roles, [best_eleven], TEAM_FORMATION)
+                                    [best_eleven], TEAM_FORMATION)
     # Get lent players good enough for best eleven and best 2nd team
     lent_best_eleven = get_top_players(players[players["club_status"] == "my_club_lent"],
-                                       positions, player_roles, reference_team=best_eleven)
+                                       positions, reference_team=best_eleven)
     lent_best_2nd_team = get_top_players(players[players["club_status"] == "my_club_lent"],
-                                         positions, player_roles, [lent_best_eleven],
+                                         positions, [lent_best_eleven],
                                          reference_team=best_2nd_team)
     # Get best 11 under 21 and 18
     under_21_best_eleven = get_top_players(
-        players[players["club_status"].isin(["my_club_lent", "my_club"])], positions, player_roles,
+        players[players["club_status"].isin(["my_club_lent", "my_club"])], positions,
         [best_eleven, best_2nd_team, lent_best_eleven, lent_best_2nd_team],
         team_formation_internal=TEAM_FORMATION, age=21)
     under_18_best_eleven = get_top_players(
-        players[players["club_status"].isin(["my_club_lent", "my_club"])], positions, player_roles,
+        players[players["club_status"].isin(["my_club_lent", "my_club"])], positions,
         [best_eleven, best_2nd_team, lent_best_eleven, lent_best_2nd_team, under_21_best_eleven],
         team_formation_internal=TEAM_FORMATION, age=18)
     # Get the bad players
@@ -740,18 +725,18 @@ def main():
     # TODO: Some classifications are not used anymore. Remove
     no_knowledge = players[players["data_completion"] == "all_incomplete"]
     low_knowledge_best_2nd_team = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions, player_roles,
+        players[players["df_type_detailed"] == "search_players"], positions,
         [no_knowledge], reference_team=best_2nd_team, knowledge=0.3)
     low_knowledge_best_2nd_team_under_21 = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions, player_roles,
+        players[players["df_type_detailed"] == "search_players"], positions,
         [no_knowledge, low_knowledge_best_2nd_team], reference_team=under_21_best_eleven,
         age=21, knowledge=0.3)
     low_knowledge_best_top_5 = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions, player_roles,
+        players[players["df_type_detailed"] == "search_players"], positions,
         [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21],
         knowledge=0.3)
     low_knowledge_best_top_5_under_21 = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions, player_roles,
+        players[players["df_type_detailed"] == "search_players"], positions,
         [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21,
          low_knowledge_best_top_5], age=21, knowledge=0.3)
     low_knowledge_bad_players = exclude_players(
@@ -764,16 +749,16 @@ def main():
     # Players with knowledge
     # TODO: Some classifications are not used anymore. Remove
     hire_best_eleven = get_top_players(players[players["df_type_detailed"] == "search_players"],
-                                       positions, player_roles,
+                                       positions,
                                        [no_knowledge, low_knowledge_bad_players,
                                         low_knowledge_suggest_scout], reference_team=best_eleven)
     hire_best_2nd_team = get_top_players(players[players["df_type_detailed"] == "search_players"],
-                                         positions, player_roles,
+                                         positions,
                                          [no_knowledge, low_knowledge_bad_players,
                                           low_knowledge_suggest_scout, hire_best_eleven],
                                           reference_team=best_2nd_team)
     hire_best_under_21 = get_top_players(players[players["df_type_detailed"] == "search_players"],
-                                         positions, player_roles,
+                                         positions,
                                          [no_knowledge, low_knowledge_bad_players,
                                           low_knowledge_suggest_scout, hire_best_eleven,
                                           hire_best_2nd_team],
@@ -782,7 +767,7 @@ def main():
                                         set(TEAM_FORMATION))
     hire_best_other_positions = get_top_players(
         players[players["df_type_detailed"] == "search_players"],
-        positions, player_roles,
+        positions,
         [no_knowledge, low_knowledge_bad_players, low_knowledge_suggest_scout, hire_best_eleven,
          hire_best_2nd_team, hire_best_under_21],
          team_formation_internal=non_team_formation_positions)
