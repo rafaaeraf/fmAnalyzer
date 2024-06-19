@@ -9,7 +9,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 ################## Inputs ##################
-IN_GAME_DATE = "2029-12-29" # YYYY-MM-DD
+IN_GAME_DATE = "2030-06-10" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
@@ -428,7 +428,7 @@ def handle_percentage_values(percentage_str):
 def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=None, pos=None):
     # Relevant columns for all
     col_all_players = ["s_position", "s_over", "Nome", "analysis_status", "Posição", "Idade",
-                       "Clube", "Nac", "Valor", "Preço Exigido", "Salário", "Expira",
+                       "Clube", "Nac", "Valor", "Preço Exigido", "Salário", "club_status", "Expira",
                        "Pé Preferido", "Altura", "Peso", "Personalidade", "Nív. Conh.",
                        "Situação de Transferência", "Empréstimo"]
     # Relevant columns for non per position list
@@ -436,7 +436,7 @@ def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=N
                    "3rd_over", "3rd_over_role", "1st_norm_over", "1st_norm_over_role",
                    "2nd_norm_over", "2nd_norm_over_role", "3rd_norm_over", "3rd_norm_over_role"]
 
-    # If per position dataframe, filter players dataframe
+    # If coaches dataframe
     if all(full_df["df_type"] == "coaches"):
         # Relevant columns for coaches dataframe
         col_coaches = ["Nome", "Função", "Função Preferida", "Idade", "Clube", "Nac", "Salário",
@@ -446,12 +446,13 @@ def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=N
             positions_internal.loc[positions_internal["positions"].isna(), "short_name"].unique())
         columns = col_coaches + col_non_pos
         ret = full_df
+    # If per position dataframe, filter players dataframe
     elif pos is not None:
         ret = filter_players_by_position(full_df, pos)
         # Order by position general attribute
         ret = ret.sort_values(pos + "-Ge", ascending=False)
         col_pos = list(filter_positions_df_by_position(positions_internal, pos)["short_name"])
-        columns = col_all_players + col_pos + ["norm - " + c for c in col_pos]
+        columns = list(pos + "-Ge") + col_all_players + col_pos + ["norm - " + c for c in col_pos]
     # If top_players dataframe, get info from full players dataframe
     elif "s_position" in filtered_df.columns:
         ret = pd.merge(filtered_df, full_df, how="inner", left_index=True, right_index=True)
