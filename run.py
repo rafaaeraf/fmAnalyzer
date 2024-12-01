@@ -9,14 +9,14 @@ import pandas as pd
 from openpyxl import load_workbook
 
 ################## Inputs ##################
-IN_GAME_DATE = "2030-06-10" # YYYY-MM-DD
+IN_GAME_DATE = "2034-04-16" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
 WEIGHTS_DICT_PLAYERS = {"green": 5, "blue": 3, "normal": 1}
 WEIGHTS_DICT_COACHES = {"green": 5, "blue": 3, "normal": 0}
-TEAM_FORMATION = ["GR", "D(D)", "D(C)", "D(C)", "D(E)", "MD", "M(C)", "M(C)", "MO(C)", "PL(C)",
-                   "PL(C)"]
+TEAM_FORMATION = ["GR", "D(D)", "D(C)", "D(C)", "D(E)",
+                  "M(C)", "M(C)", "MO(E)", "MO(C)", "MO(D)", "PL(C)"]
 
 ################## Methods ##################
 def get_df_type(df):
@@ -452,7 +452,7 @@ def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=N
         # Order by position general attribute
         ret = ret.sort_values(pos + "-Ge", ascending=False)
         col_pos = list(filter_positions_df_by_position(positions_internal, pos)["short_name"])
-        columns = list(pos + "-Ge") + col_all_players + col_pos + ["norm - " + c for c in col_pos]
+        columns = [pos + "-Ge"] + col_all_players + col_pos + ["norm - " + c for c in col_pos]
     # If top_players dataframe, get info from full players dataframe
     elif "s_position" in filtered_df.columns:
         ret = pd.merge(filtered_df, full_df, how="inner", left_index=True, right_index=True)
