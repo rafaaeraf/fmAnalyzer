@@ -1,6 +1,6 @@
 from run import *
 
-INPUT_FILE = "C:\\Users\\rafaa\\Documents\\Sports Interactive\\Football Manager 2020\\\Indefinido.html"
+INPUT_FILE = "C:\\Users\\rafaaeraf\\Documents\\Sports Interactive\\Football Manager 2020\\Indefinido.html"
 
 # Get current directory and read attributes weights CSVs
 curr_dir = os.path.dirname(os.path.abspath(__file__))

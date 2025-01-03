@@ -9,7 +9,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 ################## Inputs ##################
-IN_GAME_DATE = "2034-04-16" # YYYY-MM-DD
+IN_GAME_DATE = "2034-08-25" # YYYY-MM-DD
 DATA_DIR = "C:\\fmAnalyzer\\data"
 OUTPUT_DIR = "C:\\fmAnalyzer\\output"
 CLUB_NAME = "Blyth"
@@ -424,12 +424,21 @@ def handle_percentage_values(percentage_str):
     # Remove the percentage sign and convert to float
     return float(percentage_str.strip("%")) / 100
 
+# Function to handle recomendation column returning a single number or empty for no recommendation
+def handle_recomendation_colun(recom):
+    if pd.isna(recom) or recom == "- - -":
+        return np.nan
+    ret = recom.replace("- - ", "").replace(" -", "")
+    if ret == "0":
+        return np.nan
+    return ret
+
 # Organize dataframe so it has a nice format for output
 def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=None, pos=None):
     # Relevant columns for all
     col_all_players = ["s_position", "s_over", "Nome", "analysis_status", "Posição", "Idade",
-                       "Clube", "Nac", "Valor", "Preço Exigido", "Salário", "club_status", "Expira",
-                       "Pé Preferido", "Altura", "Peso", "Personalidade", "Nív. Conh.",
+                       "Clube", "Divisão", "Nac", "Valor", "Preço Exigido", "Salário", "club_status",
+                       "Expira", "Pé Preferido", "Altura", "Peso", "Personalidade", "Nív. Conh.",
                        "Situação de Transferência", "Empréstimo"]
     # Relevant columns for non per position list
     col_non_pos = ["1st_over", "1st_over_role", "2nd_over", "2nd_over_role",
@@ -452,7 +461,7 @@ def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=N
         # Order by position general attribute
         ret = ret.sort_values(pos + "-Ge", ascending=False)
         col_pos = list(filter_positions_df_by_position(positions_internal, pos)["short_name"])
-        columns = [pos + "-Ge"] + col_all_players + col_pos + ["norm - " + c for c in col_pos]
+        columns = [pos + "-Ge"] + ["Rec"] + col_all_players + col_pos + ["norm - " + c for c in col_pos]
     # If top_players dataframe, get info from full players dataframe
     elif "s_position" in filtered_df.columns:
         ret = pd.merge(filtered_df, full_df, how="inner", left_index=True, right_index=True)
@@ -623,6 +632,9 @@ def main():
         {"Colocado na lista de transferências": "Listado"})
     players["Empréstimo"] = players["Empréstimo"].replace(
         {"Colocado na lista de transferências": "Listado"})
+
+    # Handle scout recomendation column
+    players["Rec"] = players["Rec"].apply(handle_recomendation_colun)
 
     # Get person club status
     players["club_status"] = players.apply(get_person_club_status, axis=1)
