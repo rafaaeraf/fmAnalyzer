@@ -409,6 +409,40 @@ def get_top_players(players_internal, positions_internal,
     ret = ret.set_index("IDU")
     return ret
 
+# This method will get the num_players best players for any position, using the 1st_norm_over as
+# the method to rank players
+def get_top_players_for_any_position(players_internal, players_to_exclude=None, age=None, num_players=8):
+    filtered_players = exclude_players(players_internal, players_to_exclude)
+    # Filter by age
+    if age is not None:
+        filtered_players = filtered_players[filtered_players["Idade"] == age]
+    # Order by 1st_norm_over
+    filtered_players = filtered_players.sort_values("1st_norm_over", ascending=False)
+    # Get num_players top players
+    filtered_players = filtered_players.head(num_players)
+    return filtered_players[["1st_norm_over", "1st_norm_over_role"]]
+
+# This method will get the num_players best players for any position, using the 1st_norm_over as
+# the method to rank players, for each age in between age_min and age_max
+def get_top_players_age_range_any_position(players_internal, players_to_exclude=None, age_min=None, age_max=None, num_players=8):
+    filtered_players = exclude_players(players_internal, players_to_exclude)
+    # Get age_min and age_max
+    if age_min is None:
+        age_min = min(filtered_players["Idade"])
+    if age_max is None:
+        age_max = max(filtered_players["Idade"])
+    ret = None
+    for age in range(age_min, age_max + 1):
+        aux = get_top_players_for_any_position(filtered_players, age=age, num_players=num_players)
+        # Append to ret
+        if aux.size > 0:
+            if ret is None:
+                ret = aux
+            else:
+                ret = pd.concat([ret, aux])
+    return ret
+            
+
 # Given a set of filtered dataframes and tags pairs, returns a column of the original original
 # dataframe containing these tags for the relevant row contained in the filtered dataframes
 def get_analysis_status(players_internal, df_and_tag):
@@ -431,12 +465,12 @@ def handle_recomendation_colun(recom):
     ret = recom.replace("- - ", "").replace(" -", "")
     if ret == "0":
         return np.nan
-    return ret
+    return int(ret)
 
 # Organize dataframe so it has a nice format for output
 def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=None, pos=None):
     # Relevant columns for all
-    col_all_players = ["s_position", "s_over", "Nome", "analysis_status", "Posição", "Idade",
+    col_all_players = ["s_position", "s_over", "Rec", "Nome", "analysis_status", "Posição", "Idade",
                        "Clube", "Divisão", "Nac", "Valor", "Preço Exigido", "Salário", "club_status",
                        "Expira", "Pé Preferido", "Altura", "Peso", "Personalidade", "Nív. Conh.",
                        "Situação de Transferência", "Empréstimo"]
@@ -461,7 +495,7 @@ def make_df_printable(full_df, all_notes, filtered_df=None, positions_internal=N
         # Order by position general attribute
         ret = ret.sort_values(pos + "-Ge", ascending=False)
         col_pos = list(filter_positions_df_by_position(positions_internal, pos)["short_name"])
-        columns = [pos + "-Ge"] + ["Rec"] + col_all_players + col_pos + ["norm - " + c for c in col_pos]
+        columns = [pos + "-Ge"] + col_all_players + col_pos + ["norm - " + c for c in col_pos]
     # If top_players dataframe, get info from full players dataframe
     elif "s_position" in filtered_df.columns:
         ret = pd.merge(filtered_df, full_df, how="inner", left_index=True, right_index=True)
@@ -734,62 +768,36 @@ def main():
                                [lent_best_eleven, lent_best_2nd_team, under_21_best_eleven,
                                 under_18_best_eleven])
 
-    # Handle players with low knowledge
-    # TODO: Some classifications are not used anymore. Remove
+    # Handle players with no knowledge
     no_knowledge = players[players["data_completion"] == "all_incomplete"]
-    low_knowledge_best_2nd_team = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions,
-        [no_knowledge], reference_team=best_2nd_team, knowledge=0.3)
-    low_knowledge_best_2nd_team_under_21 = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions,
-        [no_knowledge, low_knowledge_best_2nd_team], reference_team=under_21_best_eleven,
-        age=21, knowledge=0.3)
-    low_knowledge_best_top_5 = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions,
-        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21],
-        knowledge=0.3)
-    low_knowledge_best_top_5_under_21 = get_top_players(
-        players[players["df_type_detailed"] == "search_players"], positions,
-        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21,
-         low_knowledge_best_top_5], age=21, knowledge=0.3)
-    low_knowledge_bad_players = exclude_players(
-        players[(players["df_type_detailed"] == "search_players") & (players["Nív. Conh."] <= 0.3)],
-        [no_knowledge, low_knowledge_best_2nd_team, low_knowledge_best_2nd_team_under_21,
-         low_knowledge_best_top_5, low_knowledge_best_top_5_under_21])
-    low_knowledge_suggest_scout = exclude_players(
-        players[(players["df_type_detailed"] == "search_players") & (players["Nív. Conh."] <= 0.3)],
-        [low_knowledge_bad_players])
-    # Players with knowledge
-    # TODO: Some classifications are not used anymore. Remove
+
+    # Players to hire
     hire_best_eleven = get_top_players(players[players["df_type_detailed"] == "search_players"],
                                        positions,
-                                       [no_knowledge, low_knowledge_bad_players,
-                                        low_knowledge_suggest_scout], reference_team=best_eleven)
-    hire_best_2nd_team = get_top_players(players[players["df_type_detailed"] == "search_players"],
-                                         positions,
-                                         [no_knowledge, low_knowledge_bad_players,
-                                          low_knowledge_suggest_scout, hire_best_eleven],
-                                          reference_team=best_2nd_team)
-    hire_best_under_21 = get_top_players(players[players["df_type_detailed"] == "search_players"],
-                                         positions,
-                                         [no_knowledge, low_knowledge_bad_players,
-                                          low_knowledge_suggest_scout, hire_best_eleven,
-                                          hire_best_2nd_team],
-                                          reference_team=under_21_best_eleven, age=21)
+                                       [no_knowledge], reference_team=best_eleven)
+    #hire_best_2nd_team = get_top_players(players[players["df_type_detailed"] == "search_players"],
+    #                                     positions,
+    #                                     [no_knowledge, hire_best_eleven],
+    #                                      reference_team=best_2nd_team, num_players=2)
     non_team_formation_positions = list(set(get_all_possible_positions(players)) -
                                         set(TEAM_FORMATION))
     hire_best_other_positions = get_top_players(
         players[players["df_type_detailed"] == "search_players"],
         positions,
-        [no_knowledge, low_knowledge_bad_players, low_knowledge_suggest_scout, hire_best_eleven,
-         hire_best_2nd_team, hire_best_under_21],
+        [no_knowledge, hire_best_eleven],
          team_formation_internal=non_team_formation_positions)
+    
+    # Young players to hire
+    hire_best_young = get_top_players_age_range_any_position(
+        players[players["df_type_detailed"] == "search_players"],
+        [no_knowledge, hire_best_eleven, hire_best_other_positions],
+        age_max=21)
+    
+    # All remaining players
     bad_hire_players = exclude_players(players[players["df_type_detailed"] == "search_players"],
-                                       [no_knowledge, low_knowledge_bad_players,
-                                        low_knowledge_suggest_scout, hire_best_eleven,
-                                        hire_best_2nd_team, hire_best_under_21,
-                                        hire_best_other_positions])
-
+                                       [no_knowledge, hire_best_eleven, hire_best_other_positions,
+                                        hire_best_young])
+    
     # Add a tags column to the players dataframe
     players["analysis_status"] = get_analysis_status(
         players, [(best_eleven, "best_11"), (best_2nd_team, "best_2nd_team"),
@@ -798,12 +806,14 @@ def main():
                   (under_18_best_eleven, "under_18_best_11"),
                   (bad_players_my_team, "bad_players_my_team"),
                   (bad_lent, "bad_lent"), (no_knowledge, "no_knowledge"),
-                  (low_knowledge_bad_players, "low_knowledge_bad_players"),
-                  (low_knowledge_suggest_scout, "low_knowledge_suggest_scout"),
-                  (hire_best_eleven, "hire_best_11"), (hire_best_2nd_team, "hire_best_2nd_team"),
-                  (hire_best_under_21, "hire_best_under_21"),
+                  (hire_best_eleven, "hire_best_11"), 
                   (hire_best_other_positions, "hire_best_other_positions"),
+                  (hire_best_young, "hire_best_young"),
                   (bad_hire_players, "bad_hire_players")])
+    
+    # Players to suggest hiring
+    hire = players[(players["df_type_detailed"] == "search_players") & (players["analysis_status"] != "bad_hire_players")]
+    hire = hire.sort_values(["analysis_status", "Idade"])
 
     save_results([(best_eleven, "1st"),
                   (best_2nd_team, "2nd"),
@@ -812,7 +822,8 @@ def main():
                   (lent_best_eleven, "lent_1st"),
                   (lent_best_2nd_team, "lent_2nd"),
                   (bad_players_my_team, "bad"),
-                  (bad_lent, "bad_lent")], players, coaches, positions)
+                  (bad_lent, "bad_lent"),
+                  (hire, "hire")], players, coaches, positions)
 
     print("end")
 
